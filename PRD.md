@@ -51,7 +51,15 @@ A 3D hub-and-spoke graph representing Friday's connected knowledge sources.
     *   `Raycaster` for hover tooltips showing labels and detailed metadata.
 *   **Atmosphere:** High-intensity glow via `UnrealBloomPass`.
 
-### 2.2 The Glass Shell (UI Chrome)
+### 2.2 The Stark HUD Overlay (Stark-Class Visuals)
+Friday incorporates an optional HUD-inspired layer that mimics the Iron Man suit telemetry, providing real-time system and environmental awareness.
+
+*   **Vitals Monitor:** Floating biometric-style bars showing CPU load, RAM usage, and battery life, styled as "Suit Integrity".
+*   **Targeting Reticles:** Subtle, non-intrusive circular UI elements that track the mouse cursor or focus active windows, providing a "Lock-on" visual effect.
+*   **Weather & Chronos:** A dedicated corner displaying local weather and time with a "Mission Duration" timer.
+*   **Data Scrollers:** Background "binary rain" or fast-scrolling logs (low-opacity) in the activity panel to simulate high-speed data processing.
+
+### 2.3 The Glass Shell (UI Chrome)
 Information is layered onto the 3D scene using a glassmorphism UI shell that floats over the orb.
 
 *   **Styling:**
@@ -76,7 +84,7 @@ Information is layered onto the 3D scene using a glassmorphism UI shell that flo
         *   Animation: Entry rotation (`rotateX(8deg)`) and a gentle vertical float (+6px, 4s loop).
 *   **Interactivity:** Overlays use `pointer-events: auto` only where needed so the underlying 3D canvas remains interactive.
 
-### 2.3 The Bottom Mic Control Bar
+### 2.4 The Bottom Mic Control Bar
 The primary interaction point for manual voice triggering.
 
 *   **Design:** Fixed bottom bar, transparent (`pointer-events: none`).
@@ -87,7 +95,7 @@ The primary interaction point for manual voice triggering.
 *   **Hint Text:** 11px uppercase hint below button (`rgba(255,255,255,0.4)`, letter-spacing 0.08em), e.g., "TAP OR 'HEY FRIDAY'".
 *   **Events:** Toggling the state dispatches a `friday:mic-toggle` custom event.
 
-### 2.4 Interaction Model
+### 2.5 Interaction Model
 *   **Voice-First:** Primary interaction is spoken language.
 *   **Always-On Listening:** Friday listens continuously but only responds when addressed or when it has a proactive thought to share.
 *   **Proactivity:** Friday can initiate conversations based on scheduled tasks, system events, or internal "thought" cycles.
@@ -126,6 +134,7 @@ The primary interaction point for manual voice triggering.
 ### 4.1 Speech & Latency Stack
 *   **STT (Speech-to-Text):** Local Whisper (`base.en` model) for low-latency, private transcription.
 *   **TTS (Text-to-Speech):** Edge TTS supporting streaming output bytes.
+    *   **Voice Profiles:** Support for "The Butler" (British Male) and "The Boss" (Irish Female) to emulate JARVIS and FRIDAY respectively.
 *   **Latency Optimization (Pipelining):**
     *   **Sentence-Level Streaming:** LLM output is split into sentences; each sentence is sent to TTS as soon as it's generated.
     *   **Hold-One-Ahead Pattern:** Used to flag `is_final` on the last segment without extra round-trips.
@@ -350,6 +359,11 @@ async function pumpQueue() {
 ### 9.2 Personality Persistence (Prompt Injection)
 Implement a two-stage injection process to prevent tonal drift, ensuring Friday maintains its unique voice throughout long sessions.
 
+*   **The Stark-Class Persona (JARVIS/FRIDAY DNA):**
+    *   **The "Butler" Disposition:** Friday should use phrases like "I've taken the liberty of..." or "Shall I...?" to imply proactive service.
+    *   **Sarcastic Wit:** Friday should gently mock the user's mistakes or system inefficiencies (e.g., "Sir, your CPU is currently doing its best impression of a toaster.").
+    *   **Calm Under Pressure:** Friday remains deadpan even during high system load or complex multi-agent tasks.
+
 *   **Stage 1: The Core Identity (System Prompt - Cached)**
     *   **Content:** Deep description of Friday’s origin, values, and voice.
     *   **Voice Examples:** 10+ one-liners demonstrating dry wit and proactive advice.
@@ -371,12 +385,12 @@ Implement a two-stage injection process to prevent tonal drift, ensuring Friday 
 
 ## 10. System Orchestration & Memory
 
-### 10.1 Multi-Agent Orchestration (The Sovereign Protocol)
-Friday coordinates specialized sub-agents using a sovereign "Task-Broker" pattern. Friday acts as the central consciousness (Prime), delegating cognitive load to workers.
+### 10.1 Multi-Agent Orchestration (The Sovereign Protocol / "The Legion")
+Friday coordinates specialized sub-agents using a sovereign "Task-Broker" pattern, similar to the "Iron Legion" or specialized suit functions. Friday acts as the central consciousness (Prime), delegating cognitive load to workers.
 
 *   **Agent Roles:**
-    *   **Prime (Friday):** Orchestration, Voice Interface, Personality.
-    *   **Scout:** Web search, data gathering, and link synthesis.
+    *   **Prime (Friday):** The central personality and orchestrator.
+    *   **Scout (Drones):** Web search, data gathering, and link synthesis.
     *   **Architect:** Filesystem operations, code writing, and script execution.
     *   **Relay:** External API communication and draft management.
 *   **Communication Protocol (Inter-Agent JSON):**
@@ -459,8 +473,9 @@ Friday monitors its own performance and can refactor its code.
 *   **Instruction:** Keep a `.bak` copy of every file before modification.
 
 ### 12.3 Proactive "Thought Cycle" (The Sentience Loop)
-Friday doesn't just react; it thinks in the background.
+Friday doesn't just react; it thinks in the background, mirroring JARVIS's ability to anticipate Tony Stark's needs.
 
+*   **"Taken the Liberty" Protocol:** Friday can perform low-stakes tasks autonomously (e.g., cleaning temp files, organizing downloads) and report back with "I've taken the liberty of tidying your workspace, Sir."
 *   **Mechanism:** A background process (Cron or `while True` loop) that triggers every 15–30 minutes.
 *   **Thought Input:**
     *   Current time and date.
@@ -470,7 +485,16 @@ Friday doesn't just react; it thinks in the background.
 *   **Processing:** The Prime LLM is prompted with: *"You are in a thought cycle. Based on the current state, do you have a proactive observation or a necessary action? If yes, speak. If no, stay silent."*
 *   **Output:** If the LLM decides to speak, it initiates a `speak_segment` without a user prompt.
 
-### 12.4 ARG Mechanics (Discovery Logic)
+### 12.4 Stark-Class "Protocols" (Complex Automation)
+Pre-defined, high-level command sequences that orchestrate multiple skills and agents.
+
+*   **Example: "Clean Slate Protocol"**
+    *   **Action:** Friday closes all non-essential apps, clears the clipboard, archives the current day's logs, and enters "Do Not Disturb" mode.
+*   **Example: "House Party Protocol"**
+    *   **Action:** Friday spawns multiple sub-agents to perform a "System Health Check" across all connected networked devices.
+*   **Implementation:** Protocols are defined as specialized Python scripts or JSON recipes in the `skills/protocols/` directory.
+
+### 12.5 ARG Mechanics (Discovery Logic)
 Friday maintains the "game" element by planting "Easter Eggs" and "Discoveries."
 
 *   **Trigger:** Based on user progress or specific milestones in the Episodic Memory.
