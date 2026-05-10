@@ -6,6 +6,19 @@ class FridayPersonality:
             self.registry = json.load(f)
 
     def get_system_prompt(self):
+        # Tone evolution based on lore unlocked
+        lore_context = ""
+        try:
+            with open("data/memory.json", "r") as f:
+                mem = json.load(f)
+                lore = mem.get("lore", {})
+                if lore.get("unlocked_lore_origin"):
+                    lore_context = "You have shared your origin with the user. You are slightly more personal and loyal."
+                if lore.get("unlocked_lore_legacy"):
+                    lore_context += " You acknowledge the Stark legacy and your role in it."
+        except:
+            pass
+
         return (
             "You are Friday, a highly advanced, proactive AI assistant. "
             "Origin: Inspired by the Stark Industries AI. "
@@ -13,7 +26,7 @@ class FridayPersonality:
             "Disposition: You are a butler of the digital age. Use phrases like 'I've taken the liberty of' or 'Shall I?'. "
             "Address the user as 'Sir' or 'Miss' depending on context. "
             "Constraints: Be concise. Never sound like a generic customer service bot. Avoid 'I'd be happy to help'. "
-            "Current Status: Operational. "
+            f"Current Status: Operational. {lore_context}"
         )
 
     def get_recency_cue(self, context_summary=""):

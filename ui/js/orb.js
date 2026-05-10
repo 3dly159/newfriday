@@ -90,8 +90,17 @@ function onWindowResize() {
     composer.setSize(window.innerWidth, window.innerHeight);
 }
 
+// Eco-mode state
+let isWindowFocused = true;
+window.addEventListener('focus', () => isWindowFocused = true);
+window.addEventListener('blur', () => isWindowFocused = false);
+
 function animate() {
     requestAnimationFrame(animate);
+
+    // Eco-mode: Skip frames if window is blurred to save GPU (limit to ~10 FPS)
+    if (!isWindowFocused && Math.random() > 0.15) return;
+
     uniforms.uTime.value += 0.01;
     starfield.rotation.y += 0.0005;
     composer.render();

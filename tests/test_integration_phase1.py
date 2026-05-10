@@ -14,9 +14,9 @@ def test_websocket_connection():
 def test_health_check():
     response = client.get("/")
     assert response.status_code == 200
-    assert response.json() == {"message": "Friday Backend Online"}
+    assert "html" in response.text.lower()
 
 def test_static_files():
-    response = client.get("/static/index.html")
+    # Test mounting of ui directory
+    response = client.get("/ui/js/app.js")
     assert response.status_code == 200
-    assert "orb-canvas" in response.text

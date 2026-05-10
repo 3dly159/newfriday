@@ -14,9 +14,13 @@ function connectWebSocket() {
             const msg = JSON.parse(event.data);
             if (msg.type === 'speak_segment') {
                 currentHeldText = msg.text;
-                // Wait for the binary data that follows immediately
+                if (currentHeldText.includes("PENDING_APPROVAL:")) {
+                    handleApprovalRequest(currentHeldText);
+                }
             } else if (msg.type === 'status') {
                 setStatus(msg.state);
+            } else if (msg.type === 'arg_unlocked') {
+                triggerGlitch();
             }
         } else {
             // Audio response segment
@@ -145,6 +149,52 @@ function stopRecording() {
     }
 }
 
+function triggerGlitch() {
+    document.body.classList.add('glitch-mode');
+    setTimeout(() => {
+        document.body.classList.remove('glitch-mode');
+    }, 3000);
+}
+window.triggerGlitch = triggerGlitch;
+
+function handleApprovalRequest(text) {
+    let perm;
+    if (typeof text === 'string') {
+        perm = text.split(": ")[1];
+    } else if (text && text.category) {
+        perm = text.category;
+    } else {
+        perm = "Unknown";
+    }
+    const toast = document.getElementById('permission-toast');
+    const msg = document.getElementById('toast-message');
+    msg.innerText = `Friday is requesting permission: ${perm.toUpperCase()}`;
+    toast.classList.remove('hidden');
+
+    document.getElementById('toast-allow').onclick = async () => {
+        const perms = {};
+        perms[perm] = 'allow';
+        await fetch('/api/permissions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(perms)
+        });
+        toast.classList.add('hidden');
+    };
+
+    document.getElementById('toast-deny').onclick = async () => {
+        const perms = {};
+        perms[perm] = 'deny';
+        await fetch('/api/permissions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(perms)
+        });
+        toast.classList.add('hidden');
+    };
+}
+window.handleApprovalRequest = handleApprovalRequest;
+
 // Settings Management
 const settingsBtn = document.getElementById('settings-btn');
 const settingsModal = document.getElementById('settings-modal');
@@ -156,6 +206,11 @@ settingsBtn.addEventListener('click', async () => {
     const resp = await fetch('/api/config');
     const config = await resp.json();
     renderSettings(config);
+
+    const permsResp = await fetch('/api/permissions');
+    const perms = await permsResp.json();
+    renderPermissions(perms);
+
     settingsModal.classList.remove('hidden');
 });
 
@@ -170,11 +225,55 @@ saveSettingsBtn.addEventListener('click', async () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config)
     });
+
+    const perms = collectPermissions();
+    await fetch('/api/permissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(perms)
+    });
+
     settingsModal.classList.add('hidden');
 });
 
+function renderPermissions(perms) {
+    const container = document.getElementById('permissions-form');
+    container.innerHTML = '';
+    if (typeof perms !== 'object' || Array.isArray(perms)) return;
+    for (const key in perms) {
+        const label = document.createElement('label');
+        label.innerText = key.replace(/_/g, ' ').toUpperCase();
+
+        const select = document.createElement('select');
+        select.dataset.key = key;
+        ['allow', 'ask', 'deny'].forEach(opt => {
+            const o = document.createElement('option');
+            o.value = opt;
+            o.text = opt.toUpperCase();
+            if (opt === perms[key]) o.selected = true;
+            select.appendChild(o);
+        });
+        select.style.background = 'rgba(255,255,255,0.1)';
+        select.style.border = '1px solid rgba(255,255,255,0.2)';
+        select.style.color = 'white';
+
+        container.appendChild(label);
+        container.appendChild(select);
+    }
+}
+
+function collectPermissions() {
+    const perms = {};
+    const selects = document.getElementById('permissions-form').querySelectorAll('select');
+    selects.forEach(s => {
+        perms[s.dataset.key] = s.value;
+    });
+    return perms;
+}
+
 function renderSettings(config) {
     settingsForm.innerHTML = '';
+    if (typeof config !== 'object' || Array.isArray(config)) return;
     for (const section in config) {
         const header = document.createElement('h3');
         header.innerText = section.toUpperCase();

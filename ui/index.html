@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Friday AI</title>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="ui/css/style.css">
     <script type="importmap">
         {
             "imports": {
@@ -82,13 +82,30 @@
             <div class="settings-grid" id="settings-form">
                 <!-- Dynamically populated -->
             </div>
+
+            <h2 style="margin-top: 30px;">Security Permissions</h2>
+            <div class="settings-grid" id="permissions-form">
+                <!-- Dynamically populated -->
+            </div>
+
             <div class="modal-actions">
                 <button id="save-settings" class="action-btn">APPLY CHANGES</button>
                 <button id="close-settings" class="action-btn secondary">CANCEL</button>
             </div>
         </div>
     </div>
-    <script type="module" src="js/orb.js"></script>
-    <script type="module" src="js/app.js"></script>
+
+    <!-- Permission Approval Toast -->
+    <div id="permission-toast" class="toast hidden">
+        <div class="glass-panel toast-content">
+            <p id="toast-message">Permission Request</p>
+            <div class="toast-actions">
+                <button id="toast-allow" class="action-btn">ALLOW</button>
+                <button id="toast-deny" class="action-btn secondary">DENY</button>
+            </div>
+        </div>
+    </div>
+    <script type="module" src="ui/js/orb.js"></script>
+    <script type="module" src="ui/js/app.js"></script>
 </body>
 </html>

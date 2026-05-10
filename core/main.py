@@ -39,7 +39,7 @@ async def thought_cycle():
             from core.bridge import FridayBridge
             bridge = FridayBridge()
             vitals = bridge.get_system_vitals()
-            if vitals["cpu_percent"] > 80:
+            if vitals["cpu_usage"] > 80:
                 msg = "Sir, CPU load is quite high. You might want to check the background processes."
                 await broadcast_proactive_message(msg)
 
@@ -91,12 +91,13 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-# Mount UI
-app.mount("/static", StaticFiles(directory="ui"), name="static")
-
 @app.get("/")
 async def get_index():
-    return {"message": "Friday Backend Online"}
+    from fastapi.responses import FileResponse
+    return FileResponse("ui/index.html")
+
+# Static files should be mounted at a specific path if we have API routes
+app.mount("/ui", StaticFiles(directory="ui"), name="static")
 
 @app.get("/api/config")
 async def get_config():
@@ -118,6 +119,20 @@ async def update_config(config: dict):
     brain = FridayBrain()
     stt = FridaySTT()
     tts = FridayTTS()
+    return {"status": "success"}
+
+@app.get("/api/permissions")
+async def get_permissions():
+    from core.bridge import FridayBridge
+    bridge = FridayBridge()
+    return bridge.permissions.permissions
+
+@app.post("/api/permissions")
+async def update_permissions(perms: dict):
+    from core.bridge import FridayBridge
+    bridge = FridayBridge()
+    bridge.permissions.permissions.update(perms)
+    bridge.permissions.save()
     return {"status": "success"}
 
 def is_sentence_end(text):
@@ -156,6 +171,11 @@ async def websocket_endpoint(websocket: WebSocket):
 
             if not transcription:
                 continue
+
+            # Update Memory & Check ARG triggers
+            unlocked = brain.memory.add_episodic("user", transcription)
+            if unlocked:
+                await websocket.send_json({"type": "arg_unlocked", "flags": unlocked})
 
             await websocket.send_json({"type": "status", "state": "processing"})
 

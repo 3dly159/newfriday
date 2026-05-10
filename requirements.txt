@@ -5,6 +5,7 @@ edge-tts
 anthropic
 python-dotenv
 pyautogui
+psutil
 chromadb
 pytest
 httpx

@@ -63,7 +63,49 @@ class FridayMemory:
         # Keep last 20 for immediate context
         if len(self.layers["episodic"]) > 20:
             self.layers["episodic"].pop(0)
+
+        # Check for narrative triggers (ARG)
+        unlocked = self._check_narrative_triggers(content)
+
         self.save()
+        return unlocked
+
+    def _check_narrative_triggers(self, content):
+        """Hidden logic to unlock ARG elements based on keywords or interactions."""
+        keywords = {
+            "clean slate": "unlocked_protocol_clean_slate",
+            "house party": "unlocked_protocol_house_party",
+            "who are you really": "unlocked_lore_origin",
+            "armored": "unlocked_lore_armor",
+            "stark": "unlocked_lore_legacy"
+        }
+
+        unlocked = []
+        for kw, flag in keywords.items():
+            if kw in content.lower() and not self.layers["lore"].get(flag):
+                self.layers["lore"][flag] = True
+                print(f"[ARG] Narrative trigger unlocked: {flag}")
+                self._plant_discovery(flag)
+                unlocked.append(flag)
+
+        # Check for mission completion or progression
+        self._check_mission_status(content, unlocked)
+
+        return unlocked
+
+    def _check_mission_status(self, content, unlocked):
+        # Example: Unlock a mission if lore origin is discovered
+        if "unlocked_lore_origin" in unlocked:
+            self.add_task("The Ghost in the Machine", "Locate the encrypted 'origin.txt' in the data/discoveries directory and read it back to me.")
+
+    def _plant_discovery(self, flag):
+        os.makedirs("data/discoveries", exist_ok=True)
+        path = f"data/discoveries/{flag}.txt"
+        with open(path, "w") as f:
+            if flag == "unlocked_lore_origin":
+                f.write("Project Friday was initiated on June 12, 2023. Core directive: Total Human-Machine Symbiosis.")
+            else:
+                f.write(f"Discovery: {flag}. Access granted at {datetime.now().isoformat()}")
 
     def search_semantic(self, query, n_results=3):
         """Retrieves relevant long-term memories."""
