@@ -199,7 +199,286 @@ Friday’s memory is organized into distinct, specialized layers to mimic human-
 
 ---
 
-## 7. Implementation Roadmap
+## 7. Development Environment & Tooling
+
+### 7.1 Recommended Tech Stack
+*   **Backend:** Python 3.11+ (FastAPI) or Node.js (Hono/Express).
+*   **Frontend:** Vanilla JS / Three.js (No heavy frameworks like React to keep latency low).
+*   **Local STT:** `Faster-Whisper` or `OpenAI-Whisper` (base.en).
+*   **TTS:** `edge-tts` (Python) or `microsoft-cognitiveservices-speech-sdk`.
+*   **Automation (HID):** `PyAutoGUI` (Python) or `RobotJS` (Node).
+*   **Vector Store:** `ChromaDB` (Persistent local storage).
+
+### 7.2 Directory Structure
+```text
+friday-ai/
+├── core/                   # AI Logic & Orchestration
+│   ├── brain.py            # LLM interface & Prompt Management
+│   ├── memory.py           # Layered memory handlers
+│   └── scheduler.py        # Proactive "Thought Cycle" logic
+├── skills/                 # Skill Manifests & Scripts
+│   ├── system_control/
+│   └── custom_scripts/
+├── ui/                     # Frontend Assets
+│   ├── index.html
+│   ├── css/
+│   └── js/
+│       ├── orb.js          # Three.js Orb logic
+│       └── neural_map.js   # Three.js Neural logic
+├── data/                   # Persistent local storage
+│   ├── vector_db/
+│   └── logs/
+└── .env                    # API Keys & Local Config
+```
+
+---
+
+## 8. Technical Implementation Guide (Developer Instructions)
+
+### 8.1 Visualizing the Luminous Orb (Shader Logic)
+Developers should implement the orb using a `SphereGeometry` with a custom `ShaderMaterial`.
+
+*   **Vertex Shader:** Standard projection.
+*   **Fragment Shader (Core & Glow):**
+    ```glsl
+    uniform float uTime;
+    uniform float uVoiceBright; // 0.0 to 1.0
+    varying vec2 vUv;
+
+    void main() {
+        float distance = length(vUv - 0.5);
+        // Base idle pulse
+        float pulse = sin(uTime * 1.5) * 0.05 + 0.95;
+        // Intensity from voice
+        float brightness = uVoiceBright * 2.0 + pulse;
+
+        vec3 color = vec3(0.176, 0.831, 0.671); // #2DD4AB
+        float alpha = smoothstep(0.5, 0.2, distance) * brightness;
+
+        gl_FragColor = vec4(color, alpha);
+    }
+    ```
+*   **Post-Processing:** Use `UnrealBloomPass` with `threshold: 0.1`, `strength: 1.5`, and `radius: 0.4` to achieve the atmospheric glow.
+
+### 8.2 The Glass Shell (HTML/CSS Structure)
+The UI chrome should be built using a "Layered Sandwich" architecture.
+
+*   **Z-Index Mapping:**
+    *   3D Canvas: `z-index: 1`
+    *   Glass Overlays: `z-index: 10`
+    *   Mic Button / Floating Cards: `z-index: 20`
+    *   Modals / Tooltips: `z-index: 30`
+
+*   **Glassmorphism CSS Class:**
+    ```css
+    .glass-panel {
+        background: rgba(14, 15, 19, 0.15);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 12px;
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    }
+    ```
+
+### 8.3 Bottom Mic Control Implementation
+The mic button is a state-driven component.
+
+*   **State Machine:** `IDLE` -> `REQUESTING_PERMS` -> `LISTENING` -> `PROCESSING`.
+*   **Event Handling:**
+    ```javascript
+    const micBtn = document.getElementById('mic-trigger');
+    micBtn.addEventListener('click', () => {
+        const isActive = micBtn.classList.toggle('active');
+        const event = new CustomEvent('friday:mic-toggle', {
+            detail: { active: isActive, timestamp: Date.now() }
+        });
+        window.dispatchEvent(event);
+    });
+    ```
+
+---
+
+## 9. AI Pipeline & Logic Details
+
+### 9.1 The "Hold-One-Ahead" Streaming Algorithm
+To minimize latency while ensuring clean turn-end detection, the server must buffer exactly one sentence. This ensures the client knows when the response is truly complete without needing a separate protocol message.
+
+**Server-Side Logic (Python-like):**
+```python
+async def stream_segments(llm_stream, ws):
+    held_sentence = None
+    current_buffer = ""
+    base_turn_id = generate_id()
+
+    async for token in llm_stream:
+        current_buffer += token
+        if is_sentence_end(current_buffer):
+            if held_sentence:
+                await emit_segment(held_sentence, is_final=False)
+            held_sentence = current_buffer
+            current_buffer = ""
+
+    if held_sentence:
+        # Flush the last sentence as final
+        await emit_segment(held_sentence, is_final=True)
+```
+
+**Client-Side Audio Queue (JavaScript):**
+```javascript
+const audioQueue = [];
+let isPlaying = false;
+
+function onSegmentReceived(segment) {
+    audioQueue.push(segment);
+    if (!isPlaying) pumpQueue();
+}
+
+async function pumpQueue() {
+    if (audioQueue.length === 0) return;
+    isPlaying = true;
+    const segment = audioQueue.shift();
+    await playAudio(segment.audioUrl);
+    if (segment.is_final) {
+        onTurnComplete();
+    }
+    isPlaying = false;
+    pumpQueue();
+}
+```
+
+### 9.2 Personality Persistence (Prompt Injection)
+Implement a two-stage injection process to prevent tonal drift, ensuring Friday maintains its unique voice throughout long sessions.
+
+*   **Stage 1: The Core Identity (System Prompt - Cached)**
+    *   **Content:** Deep description of Friday’s origin, values, and voice.
+    *   **Voice Examples:** 10+ one-liners demonstrating dry wit and proactive advice.
+    *   **Constraints:** List of "Never Say" phrases (e.g., "As an AI...", "I am here to help").
+
+*   **Stage 2: The Recency Voice Cue (Last User Message - Ephemeral)**
+    *   **Technique:** Appended to the end of the user's current message in the API payload, but *not* stored in long-term history.
+    *   **Goal:** Provides the most recent priming signal to the LLM.
+    *   **Template:**
+      ```markdown
+      [VOICE CUE: Earn the smirk. Be dry, be deadpan. Banned openers: "Sure", "Okay", "I've checked". Recent interaction focus: {{current_context_summary}}]
+      ```
+
+*   **Stage 3: The Tonal Checkpoint (Uncached System Block)**
+    *   **Technique:** A small reinforcement block added to the system prompt every turn.
+    *   **Focus:** Length discipline ("Keep it under 2 sentences unless asked") and immediate behavioral correction.
+
+---
+
+## 10. System Orchestration & Memory
+
+### 10.1 Multi-Agent Orchestration (The Sovereign Protocol)
+Friday coordinates specialized sub-agents using a sovereign "Task-Broker" pattern. Friday acts as the central consciousness (Prime), delegating cognitive load to workers.
+
+*   **Agent Roles:**
+    *   **Prime (Friday):** Orchestration, Voice Interface, Personality.
+    *   **Scout:** Web search, data gathering, and link synthesis.
+    *   **Architect:** Filesystem operations, code writing, and script execution.
+    *   **Relay:** External API communication and draft management.
+*   **Communication Protocol (Inter-Agent JSON):**
+    ```json
+    {
+      "task_id": "uuid",
+      "requester": "Prime",
+      "target": "Scout",
+      "payload": {
+        "action": "search",
+        "query": "Current status of Clawhub MCPs"
+      },
+      "constraints": { "timeout_ms": 5000 }
+    }
+    ```
+*   **Handoff Logic:** Sub-agents must never talk directly to the user. They return a structured report to **Prime**, who then synthesizes the information into a voice-first response.
+
+### 10.2 Dynamic Skill Management (Claude + Clawhub)
+Friday bridges local and remote skill repositories seamlessly.
+
+*   **Skill Manifest (`skill.json`):**
+    ```json
+    {
+      "name": "system_control",
+      "version": "1.2.0",
+      "tools": [
+        {
+          "name": "open_app",
+          "description": "Opens a desktop application by name",
+          "parameters": { "type": "object", "properties": { "app_name": { "type": "string" } } }
+        }
+      ],
+      "source": "clawhub|local|claude"
+    }
+    ```
+*   **Discovery Engine:**
+    *   **Clawhub Integration:** Real-time lookup of community skills. Friday can "install" a skill by downloading its manifest and adding its tool definitions to the current LLM session context.
+    *   **Claude Native Skills:** Direct integration with Model Context Protocol (MCP) servers.
+
+---
+
+## 11. Memory Schema & Retrieval
+
+### 11.1 Semantic Memory (Vector DB)
+*   **Store:** ChromaDB (Local) or Pinecone (Cloud).
+*   **Schema:**
+    *   `id`: UUID
+    *   `vector`: 1536-dim (OpenAI/Voyage)
+    *   `metadata`: `{ "timestamp": ISO, "category": "user_preference|fact|history", "importance": 1-10 }`
+    *   `content`: Raw text string.
+*   **Retrieval:** Top-k (k=5) nearest neighbors on every "Thought Cycle" or complex query.
+
+### 11.2 Episodic Memory (The Log)
+A JSONL file stored locally: `logs/episodes.jsonl`.
+*   `{"date": "2023-10-27", "event": "User mentioned a new project called 'Nebula'", "impact": "High", "association_ids": ["uuid-123"]}`
+
+---
+
+## 12. Advanced Features: Implementation Details
+
+### 12.1 Deep System Integration (HID & Scripting)
+Friday interacts with the machine through a "Bridge" module.
+
+*   **HID Control:** Use `PyAutoGUI` to map LLM commands to screen coordinates.
+    *   *Instruction:** Always verify screen resolution before moving the mouse.
+*   **Secure Script Execution:**
+    1. Friday generates a script (`.py` or `.sh`).
+    2. The system writes it to a temporary file.
+    3. Friday executes it using `subprocess.run()`.
+    4. *Safety:* Implement a `user_approval_required` flag for any script that deletes files or accesses the network.
+
+### 12.2 Self-Improvement Module
+Friday monitors its own performance and can refactor its code.
+
+*   **Workflow:**
+    1. **Analyze:** Friday reads a specific module (e.g., `brain.py`).
+    2. **Propose:** Friday generates an optimized version of the module.
+    3. **Test:** Friday runs a local test suite against the new code.
+    4. **Deploy:** If tests pass, Friday overwrites the original file and restarts the service.
+*   **Instruction:** Keep a `.bak` copy of every file before modification.
+
+### 12.3 Proactive "Thought Cycle" (The Sentience Loop)
+Friday doesn't just react; it thinks in the background.
+
+*   **Mechanism:** A background process (Cron or `while True` loop) that triggers every 15–30 minutes.
+*   **Thought Input:**
+    *   Current time and date.
+    *   Last 3 entries in Semantic Memory.
+    *   System health status (CPU, Battery, Storage).
+    *   Uncompleted tasks from "Scout" or "Flux".
+*   **Processing:** The Prime LLM is prompted with: *"You are in a thought cycle. Based on the current state, do you have a proactive observation or a necessary action? If yes, speak. If no, stay silent."*
+*   **Output:** If the LLM decides to speak, it initiates a `speak_segment` without a user prompt.
+
+### 12.4 ARG Mechanics (Discovery Logic)
+Friday maintains the "game" element by planting "Easter Eggs" and "Discoveries."
+
+*   **Trigger:** Based on user progress or specific milestones in the Episodic Memory.
+*   **Action:** Friday might "leak" a file into the user's `Documents/Friday_Discoveries` folder or "glitch" the UI to reveal hidden data in the Neural Map.
+
+---
+
+## 13. Implementation Roadmap
 1.  **Phase 1:** Basic UI (The Orb) + Whisper/Edge TTS integration.
 2.  **Phase 2:** Tool use and system integration (App opening, HID control).
 3.  **Phase 3:** Layered memory implementation and Vector DB setup.
