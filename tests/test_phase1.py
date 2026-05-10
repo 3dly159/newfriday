@@ -19,11 +19,14 @@ def stt():
     return FridaySTT()
 
 @pytest.mark.asyncio
+@pytest.mark.skipif(not os.getenv("ANTHROPIC_API_KEY"), reason="ANTHROPIC_API_KEY not set")
 async def test_brain_response(brain):
-    response = await brain.get_response("Hello Friday")
-    assert isinstance(response, str)
-    assert len(response) > 0
-    print(f"Brain Test: {response}")
+    response_text = ""
+    async for token in brain.get_streaming_response("Hello Friday"):
+        response_text += token
+    assert isinstance(response_text, str)
+    assert len(response_text) > 0
+    print(f"Brain Test: {response_text}")
 
 @pytest.mark.asyncio
 async def test_tts_generation(tts):

@@ -1,13 +1,16 @@
 import os
 import json
 import uuid
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from core.brain import FridayBrain
 from core.stt import FridaySTT
 from core.tts import FridayTTS
 
 app = FastAPI()
+
+# Ensure data directories exist
+os.makedirs("data/logs", exist_ok=True)
 
 # Initialize modules
 brain = FridayBrain()
@@ -21,46 +24,82 @@ app.mount("/static", StaticFiles(directory="ui"), name="static")
 async def get_index():
     return {"message": "Friday Backend Online"}
 
+@app.get("/api/config")
+async def get_config():
+    with open("config/registry.json", "r") as f:
+        return json.load(f)
+
+@app.get("/api/vitals")
+async def get_vitals():
+    from core.bridge import FridayBridge
+    bridge = FridayBridge()
+    return bridge.get_system_vitals()
+
+@app.post("/api/config")
+async def update_config(config: dict):
+    with open("config/registry.json", "w") as f:
+        json.dump(config, f, indent=4)
+    # Re-initialize modules with new config
+    global brain, stt, tts
+    brain = FridayBrain()
+    stt = FridaySTT()
+    tts = FridayTTS()
+    return {"status": "success"}
+
+def is_sentence_end(text):
+    return text.strip().endswith(('.', '?', '!'))
+
+async def process_and_send_segment(websocket, text, is_final):
+    output_path = f"data/logs/resp_{uuid.uuid4().hex}.mp3"
+    await tts.generate_speech(text, output_path)
+
+    with open(output_path, "rb") as f:
+        audio_bytes = f.read()
+
+    await websocket.send_json({
+        "type": "speak_segment",
+        "text": text,
+        "is_final": is_final
+    })
+    await websocket.send_bytes(audio_bytes)
+    if os.path.exists(output_path):
+        os.remove(output_path)
+
 @app.websocket("/ws/voice")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     try:
         while True:
-            # Receive audio data from frontend
             data = await websocket.receive_bytes()
-
-            # Temporary file for the chunk
             temp_filename = f"data/logs/chunk_{uuid.uuid4().hex}.wav"
             with open(temp_filename, "wb") as f:
                 f.write(data)
 
-            # 1. STT
             transcription = stt.transcribe(temp_filename)
-            if not transcription:
+            if os.path.exists(temp_filename):
                 os.remove(temp_filename)
+
+            if not transcription:
                 continue
 
-            # 2. Brain
-            response_text = await brain.get_response(transcription)
+            await websocket.send_json({"type": "status", "state": "processing"})
 
-            # 3. TTS
-            output_tts_path = f"data/logs/resp_{uuid.uuid4().hex}.mp3"
-            await tts.generate_speech(response_text, output_tts_path)
+            # Streaming Pipelining (Hold-One-Ahead)
+            held_sentence = None
+            current_buffer = ""
 
-            # 4. Send back to frontend
-            with open(output_tts_path, "rb") as f:
-                audio_bytes = f.read()
+            async for token in brain.get_streaming_response(transcription):
+                current_buffer += token
+                if is_sentence_end(current_buffer):
+                    if held_sentence:
+                        await process_and_send_segment(websocket, held_sentence, is_final=False)
+                    held_sentence = current_buffer
+                    current_buffer = ""
 
-            await websocket.send_json({
-                "type": "response",
-                "text": response_text,
-                "transcription": transcription
-            })
-            await websocket.send_bytes(audio_bytes)
-
-            # Cleanup
-            os.remove(temp_filename)
-            os.remove(output_tts_path)
+            # Flush the final held sentence
+            final_text = (held_sentence or "") + current_buffer
+            if final_text.strip():
+                await process_and_send_segment(websocket, final_text, is_final=True)
 
     except WebSocketDisconnect:
         print("Client disconnected")
