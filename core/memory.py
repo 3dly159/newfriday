@@ -1,12 +1,15 @@
 import json
 import os
 from datetime import datetime
+import chromadb
+from chromadb.utils import embedding_functions
 
 class FridayMemory:
     """Implementation of the 7-Layer Cognitive Memory Architecture."""
 
-    def __init__(self, storage_path="data/memory.json"):
+    def __init__(self, storage_path="data/memory.json", vector_db_path="data/vector_db"):
         self.storage_path = storage_path
+        self.vector_db_path = vector_db_path
         self.layers = {
             "bio": {},          # Layer 1: Persistent user facts (Name, preferences)
             "lore": {},         # Layer 2: Project Friday backstory & ARG state
@@ -19,6 +22,15 @@ class FridayMemory:
             "task": [],         # Layer 6: Current goals & proactive queue
             "episodic": []      # Layer 7: Recent session context (Last 20 exchanges)
         }
+
+        # Initialize ChromaDB for Semantic Memory
+        self.chroma_client = chromadb.PersistentClient(path=self.vector_db_path)
+        self.embedding_fn = embedding_functions.DefaultEmbeddingFunction()
+        self.collection = self.chroma_client.get_or_create_collection(
+            name="friday_semantic_memory",
+            embedding_function=self.embedding_fn
+        )
+
         self.load()
 
     def load(self):
@@ -27,30 +39,56 @@ class FridayMemory:
                 self.layers.update(json.load(f))
 
     def save(self):
+        # Create directory if it doesn't exist
+        os.makedirs(os.path.dirname(self.storage_path), exist_ok=True)
         with open(self.storage_path, "w") as f:
             json.dump(self.layers, f, indent=4)
 
     def add_episodic(self, role, content):
+        timestamp = datetime.now().isoformat()
         self.layers["episodic"].append({
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": timestamp,
             "role": role,
             "content": content
         })
-        # Keep last 20
+
+        # Add to vector store for long-term retrieval if it's substantial
+        if len(content) > 20:
+            self.collection.add(
+                documents=[content],
+                metadatas=[{"role": role, "timestamp": timestamp}],
+                ids=[f"msg_{datetime.now().timestamp()}"]
+            )
+
+        # Keep last 20 for immediate context
         if len(self.layers["episodic"]) > 20:
             self.layers["episodic"].pop(0)
         self.save()
+
+    def search_semantic(self, query, n_results=3):
+        """Retrieves relevant long-term memories."""
+        results = self.collection.query(
+            query_texts=[query],
+            n_results=n_results
+        )
+        return results["documents"][0] if results["documents"] else []
 
     def update_bio(self, key, value):
         self.layers["bio"][key] = value
         self.save()
 
-    def get_context_string(self):
+    def get_context_string(self, current_query=None):
         """Compiles relevant memory into a context string for the LLM."""
         context = "### COGNITIVE CONTEXT\n"
         context += f"USER_BIO: {json.dumps(self.layers['bio'])}\n"
         context += f"CURRENT_TASKS: {json.dumps(self.layers['task'])}\n"
         context += f"RELATIONSHIP: {json.dumps(self.layers['social'])}\n"
+
+        if current_query:
+            relevant = self.search_semantic(current_query)
+            if relevant:
+                context += "RELEVANT_PAST_MEMORIES:\n- " + "\n- ".join(relevant) + "\n"
+
         return context
 
     def add_task(self, task_name, description):
@@ -58,6 +96,7 @@ class FridayMemory:
             "id": len(self.layers["task"]),
             "name": task_name,
             "desc": description,
-            "status": "pending"
+            "status": "pending",
+            "created_at": datetime.now().isoformat()
         })
         self.save()

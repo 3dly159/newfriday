@@ -231,5 +231,17 @@ async function updateVitals() {
 
 setInterval(updateVitals, 2000);
 
+import NeuralMap from './neural.js';
+const neuralMap = new NeuralMap('neural-map-container');
+
+document.getElementById('neural-map-btn').addEventListener('click', () => {
+    const container = document.getElementById('neural-map-container');
+    if (container.style.display === 'none') {
+        container.style.display = 'block';
+    } else {
+        container.style.display = 'none';
+    }
+});
+
 // Initialize
 connectWebSocket();

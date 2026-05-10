@@ -86,8 +86,8 @@ class FridayBrain:
         self.memory.add_episodic("user", user_input)
 
         system_prompt = self.personality.get_system_prompt()
-        # Inject memory context
-        system_prompt += "\n\n" + self.memory.get_context_string()
+        # Inject memory context (with semantic search)
+        system_prompt += "\n\n" + self.memory.get_context_string(current_query=user_input)
 
         # Build message history from episodic memory
         messages = []
