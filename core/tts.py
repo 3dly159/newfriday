@@ -1,0 +1,22 @@
+import asyncio
+import edge_tts
+import json
+import os
+
+class FridayTTS:
+    def __init__(self, registry_path="config/registry.json"):
+        with open(registry_path, "r") as f:
+            self.registry = json.load(f)
+
+        self.voice = self.registry["speech"]["tts_voice"]
+        self.rate = self.registry["speech"]["speech_rate"]
+
+    async def generate_speech(self, text: str, output_path: str):
+        communicate = edge_tts.Communicate(text, self.voice, rate=self.rate)
+        await communicate.save(output_path)
+        return output_path
+
+if __name__ == "__main__":
+    # Quick test
+    tts = FridayTTS()
+    asyncio.run(tts.generate_speech("Hello, I am Friday.", "test_speech.mp3"))

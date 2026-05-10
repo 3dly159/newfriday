@@ -1,0 +1,23 @@
+{
+    "ai_logic": {
+        "model_provider": "anthropic",
+        "llm_model": "claude-3-5-sonnet-20240620",
+        "temperature": 0.7,
+        "max_tokens": 1024
+    },
+    "speech": {
+        "tts_voice": "en-GB-RyanNeural",
+        "speech_rate": "+0%",
+        "vad_threshold": 800,
+        "whisper_model": "base.en"
+    },
+    "ui": {
+        "orb_glow_intensity": 1.0,
+        "hud_transparency": 0.15,
+        "theme_color": "#2DD4AB"
+    },
+    "system": {
+        "proactive_interval": 20,
+        "auto_approve_hid": false
+    }
+}

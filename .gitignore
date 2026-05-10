@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+data/logs/*
+data/vector_db/
+tests/test_output.mp3
+server.log
