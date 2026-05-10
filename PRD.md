@@ -10,7 +10,9 @@ To create an immersive, sentient-feeling AI companion that blurs the line betwee
 
 ## 2. User Experience & Visual Interface
 
-### 2.1 The Luminous Orb & Cosmic Background
+### 2.1 Visual Assets & 3D Scenes
+
+#### 2.1.1 The Luminous Orb & Cosmic Background
 The primary UI is a full-viewport Three.js scene that serves as the "face" of Friday.
 
 *   **Background:**
@@ -32,7 +34,60 @@ The primary UI is a full-viewport Three.js scene that serves as the "face" of Fr
     *   **Uniform Control:** Expose `uVoiceBright` (0.0 – 1.0) to dynamically adjust glow intensity based on Friday’s speech or user input.
     *   **Layering:** Canvas covers full viewport at `z-index: 1`.
 
-### 2.2 Interaction Model
+#### 2.1.2 Neural Pathway Visualization
+A 3D hub-and-spoke graph representing Friday's connected knowledge sources.
+
+*   **Technology:** Three.js (v0.174) with `OrbitControls`, `EffectComposer`, `RenderPass`, `UnrealBloomPass`, and `CSS2DRenderer`.
+*   **Data Model:** JSON input `{nodes, edges}`.
+    *   **Node Types:** `hub` (origin), `category` (first ring), `leaf` (outer cluster).
+    *   **Attributes:** `id`, `type`, `label`, `color`, `freshness`, `detail`.
+*   **Visual Representation:**
+    *   **Nodes:** Shader-driven core spheres that "breathe" based on freshness, wrapped in a translucent halo.
+    *   **Connections:** Thin lines with flowing edge particles, color-coded by category.
+    *   **Background:** Pitch-black with a starfield, soft nebula backdrop, and drifting ambient particles.
+*   **Interaction:**
+    *   `OrbitControls` with auto-rotate.
+    *   `CSS2DRenderer` for HTML labels on hub and categories.
+    *   `Raycaster` for hover tooltips showing labels and detailed metadata.
+*   **Atmosphere:** High-intensity glow via `UnrealBloomPass`.
+
+### 2.2 The Glass Shell (UI Chrome)
+Information is layered onto the 3D scene using a glassmorphism UI shell that floats over the orb.
+
+*   **Styling:**
+    *   Font: **Inter**.
+    *   Accent Color: `#2DD4AB` (Teal).
+    *   Surface: `rgba(14, 15, 19, 0.15)` with `backdrop-filter: blur(14px)` and a 1px border of `rgba(255, 255, 255, 0.06)`.
+*   **Components:**
+    1.  **Fixed Header (56px):**
+        *   Left: "Friday" wordmark with a small teal dot.
+        *   Right: Three ghost icon buttons (Neural Map, Alerts with badge, Settings).
+        *   Status Indicator: 10px status dot.
+            *   Teal (pulsing): Listening.
+            *   Blue/Purple: Processing.
+            *   Gray: Idle.
+    2.  **Activity Panel (266px, Right-side):**
+        *   Sections: Inbox Replies, Scout Tasks, Flux Tasks, Relay Drafts.
+        *   Headers: Uppercase 10px with counts.
+        *   Animations: Entries slide in from right (300ms, `cubic-bezier(0.16, 1, 0.3, 1)`).
+        *   Behavior: Collapsible to 36px via toggle.
+    3.  **Floating Response Cards (240px wide / 388px for revenue):**
+        *   Design: 2px teal top accent bar, `rgba(22, 23, 29, 0.75)` background, 16px blur.
+        *   Animation: Entry rotation (`rotateX(8deg)`) and a gentle vertical float (+6px, 4s loop).
+*   **Interactivity:** Overlays use `pointer-events: auto` only where needed so the underlying 3D canvas remains interactive.
+
+### 2.3 The Bottom Mic Control Bar
+The primary interaction point for manual voice triggering.
+
+*   **Design:** Fixed bottom bar, transparent (`pointer-events: none`).
+*   **Mic Button (64x64px circular):**
+    *   **Idle:** Dark circle (`#16171D`), 1px white border (`rgba(255, 255, 255, 0.08)`), white microphone SVG.
+    *   **Active (Listening):** Teal border (`#2DD4AB`), white stop square icon, glowing box-shadow (0 0 24px `#2DD4AB80`).
+    *   **Animation:** Expanding pulse ring (0-10px spread, opacity 1-0, 1.4s infinite, `cubic-bezier(0.16, 1, 0.3, 1)`).
+*   **Hint Text:** 11px uppercase hint below button (`rgba(255,255,255,0.4)`, letter-spacing 0.08em), e.g., "TAP OR 'HEY FRIDAY'".
+*   **Events:** Toggling the state dispatches a `friday:mic-toggle` custom event.
+
+### 2.4 Interaction Model
 *   **Voice-First:** Primary interaction is spoken language.
 *   **Always-On Listening:** Friday listens continuously but only responds when addressed or when it has a proactive thought to share.
 *   **Proactivity:** Friday can initiate conversations based on scheduled tasks, system events, or internal "thought" cycles.
@@ -68,13 +123,21 @@ The primary UI is a full-viewport Three.js scene that serves as the "face" of Fr
 
 ## 4. Technical Architecture
 
-### 4.1 Speech Stack
+### 4.1 Speech & Latency Stack
 *   **STT (Speech-to-Text):** Local Whisper (`base.en` model) for low-latency, private transcription.
-*   **TTS (Text-to-Speech):** Edge TTS for high-quality, natural-sounding voice synthesis.
+*   **TTS (Text-to-Speech):** Edge TTS supporting streaming output bytes.
+*   **Latency Optimization (Pipelining):**
+    *   **Sentence-Level Streaming:** LLM output is split into sentences; each sentence is sent to TTS as soon as it's generated.
+    *   **Hold-One-Ahead Pattern:** Used to flag `is_final` on the last segment without extra round-trips.
+    *   **Client-Side Audio Queue:** Maintains a queue of pending audio segments for seamless, sequential playback using a "pump queue" logic.
+    *   **VAD Tuning:** Voice Activity Detection window optimized to 0.8–1.0s to balance responsiveness and robustness.
 
 ### 4.2 Brain & Personality
 *   **LLM Core:** Claude-based model for reasoning and tool use.
-*   **Personality Management:** LoRA (Low-Rank Adaptation) applied to the base model to maintain a consistent, "Friday" persona (helpful, slightly witty, proactive).
+*   **Personality Management:**
+    *   **LoRA:** Applied to the base model for core behavioral anchoring.
+    *   **Recency Voice Cues:** Dynamic injection of personality-reinforcing prompts (one-liners, banned openers) into the *last user message* of every turn to prevent tonal drift.
+    *   **Tonal Checkpoints:** Per-turn system prompt reinforcement ensuring length discipline and voice consistency.
 
 ### 4.3 UI Stack
 *   **Frontend:** Vanilla HTML5, CSS3, and JavaScript (ES6+).
