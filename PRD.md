@@ -520,7 +520,34 @@ Friday maintains the "game" element by planting "Easter Eggs" and "Discoveries."
 
 ---
 
-## 13. Implementation Roadmap
+## 13. Advanced Operational Considerations
+
+### 13.1 Total Sovereignty (The Local LLM Path)
+While the default architecture uses Claude for reasoning, Friday supports a "Total Sovereignty" mode for 100% offline air-gapped operation.
+*   **LLM Provider:** Integration with `Ollama` or `vLLM` to run models like Llama 3 (8B/70B) or Mistral locally.
+*   **Prompt Adaptation:** Specific system prompt templates optimized for local model instruction-following.
+
+### 13.2 Failure Modes & Graceful Recovery
+Friday must maintain character even when technology fails.
+*   **STT Hallucinations:** If transcription is low-confidence, Friday asks for clarification in-character: "My apologies, Sir, the audio was slightly garbled. Could you repeat that?"
+*   **Tool Failures:** If a script or app fails to open, Friday reports the specific error and proposes a workaround.
+*   **Network Drops:** If the cloud LLM is unreachable, Friday reverts to a "Local Kernel" (smaller local model) to handle basic system commands until connectivity returns.
+
+---
+
+## 14. Future Horizons: The Expansion
+
+### 14.1 The Mobile Companion ("Friday Mobile")
+*   **Concept:** A lightweight companion app that syncs with the desktop "Brain."
+*   **Function:** Access Friday's memory, receive proactive alerts on your phone, and command your home computer remotely.
+
+### 14.2 IoT & Home Automation (The "Stark Mansion" Protocol)
+*   **Concept:** Integrating Friday with Home Assistant or Zigbee/Z-Wave devices.
+*   **Function:** Friday controls lighting, climate, and security cameras, unifying the digital and physical environments.
+
+---
+
+## 15. Implementation Roadmap
 1.  **Phase 1: Foundation.** Basic UI (The Orb) + Whisper/Edge TTS integration.
 2.  **Phase 2: Interaction & Identity.** Glass UI, latency pipelining, and personality.
 3.  **Phase 3: System Mastery.** HID control, secure scripting, and Stark HUD.
