@@ -1,33 +1,22 @@
-INFO:     Shutting down
-INFO:     Waiting for application shutdown.
-INFO:     Application shutdown complete.
-INFO:     Finished server process [369030]
 INFO:httpx:HTTP Request: GET https://huggingface.co/api/models/Systran/faster-whisper-base/revision/main "HTTP/1.1 200 OK"
-INFO:     Started server process [385060]
+INFO:     Started server process [495203]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-INFO:     127.0.0.1:33904 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:33904 - "GET /ui/css/style.css HTTP/1.1" 200 OK
-INFO:     127.0.0.1:33918 - "GET /ui/js/app.js HTTP/1.1" 200 OK
-INFO:     127.0.0.1:33914 - "GET /ui/js/orb.js HTTP/1.1" 200 OK
-INFO:     127.0.0.1:33914 - "GET /ui/js/neural.js HTTP/1.1" 200 OK
-INFO:     127.0.0.1:33920 - "WebSocket /ws/voice" [accepted]
+INFO:     127.0.0.1:52316 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52316 - "GET /ui/css/style.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52322 - "GET /ui/js/orb.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52336 - "GET /ui/js/app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52322 - "GET /ui/js/neural.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52340 - "WebSocket /ws/voice" [accepted]
 INFO:     connection open
+INFO:     127.0.0.1:52322 - "GET /api/vitals HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52322 - "GET /api/config HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52322 - "GET /api/vitals HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52322 - "GET /api/config HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52322 - "GET /api/vitals HTTP/1.1" 200 OK
 INFO:     connection closed
-INFO:     127.0.0.1:33924 - "WebSocket /ws/voice" [accepted]
-INFO:     connection open
-Client disconnected
-INFO:     127.0.0.1:33914 - "GET /api/config HTTP/1.1" 200 OK
-INFO:     127.0.0.1:33914 - "GET /api/vitals HTTP/1.1" 200 OK
-INFO:     127.0.0.1:33914 - "GET /api/config HTTP/1.1" 200 OK
-INFO:     127.0.0.1:33914 - "GET /api/vitals HTTP/1.1" 200 OK
-INFO:     127.0.0.1:33914 - "GET /api/config HTTP/1.1" 200 OK
-INFO:     127.0.0.1:33914 - "GET /api/config HTTP/1.1" 200 OK
-INFO:     127.0.0.1:51784 - "GET /api/permissions HTTP/1.1" 200 OK
-INFO:     127.0.0.1:33914 - "GET /api/vitals HTTP/1.1" 200 OK
-INFO:     127.0.0.1:33914 - "GET /api/config HTTP/1.1" 200 OK
-INFO:     127.0.0.1:33914 - "GET /api/vitals HTTP/1.1" 200 OK
-INFO:     127.0.0.1:33914 - "GET /api/config HTTP/1.1" 200 OK
-INFO:     127.0.0.1:33914 - "GET /api/vitals HTTP/1.1" 200 OK
-INFO:     connection closed
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [495203]

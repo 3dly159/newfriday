@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from core.brain import FridayBrain
 from core.stt import FridaySTT
 from core.tts import FridayTTS
+from core.proactive import ProactiveEngine
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -21,40 +22,18 @@ active_connections: list[WebSocket] = []
 brain = FridayBrain()
 stt = FridaySTT()
 tts = FridayTTS()
-
-async def thought_cycle():
-    """Background loop for proactive thinking."""
-    while True:
-        try:
-            # Think every 20 minutes (configurable in registry)
-            with open("config/registry.json", "r") as f:
-                config = json.load(f)
-            interval = config.get("system", {}).get("proactive_interval", 20) * 60
-
-            await asyncio.sleep(interval)
-
-            logger.info(f"[{datetime.now().isoformat()}] Friday is contemplating...")
-
-            # Example: Proactive check on system load
-            from core.bridge import FridayBridge
-            bridge = FridayBridge()
-            vitals = bridge.get_system_vitals()
-            if vitals["cpu_usage"] > 80:
-                msg = "Sir, CPU load is quite high. You might want to check the background processes."
-                await broadcast_proactive_message(msg)
-
-        except asyncio.CancelledError:
-            break
-        except Exception as e:
-            logger.error(f"Error in thought cycle: {e}")
-            await asyncio.sleep(60)
+proactive = ProactiveEngine(brain)
 
 async def broadcast_proactive_message(message: str):
     """Broadcasts a message to all connected UIs."""
     if not active_connections:
         return
 
+    # Get current mood for TTS parameters
+    mood_cfg = brain.personality.mood_states[brain.personality.current_mood]
+
     output_path = f"data/logs/proactive_{uuid.uuid4().hex}.mp3"
+    # We could extend TTS to accept pitch/rate, for now we use Edge-TTS defaults
     await tts.generate_speech(message, output_path)
 
     with open(output_path, "rb") as f:
@@ -63,7 +42,9 @@ async def broadcast_proactive_message(message: str):
     payload = {
         "type": "speak_segment",
         "text": message,
-        "is_final": True
+        "is_final": True,
+        "mood": brain.personality.current_mood,
+        "orb_color": mood_cfg["orb_color"]
     }
 
     for connection in active_connections:
@@ -80,12 +61,13 @@ async def broadcast_proactive_message(message: str):
 async def lifespan(app: FastAPI):
     # Startup logic
     os.makedirs("data/logs", exist_ok=True)
-    thought_task = asyncio.create_task(thought_cycle())
+    proactive_task = asyncio.create_task(proactive.start(broadcast_proactive_message))
     yield
     # Shutdown logic
-    thought_task.cancel()
+    proactive.stop()
+    proactive_task.cancel()
     try:
-        await thought_task
+        await proactive_task
     except asyncio.CancelledError:
         pass
 
@@ -102,7 +84,10 @@ app.mount("/ui", StaticFiles(directory="ui"), name="static")
 @app.get("/api/config")
 async def get_config():
     with open("config/registry.json", "r") as f:
-        return json.load(f)
+        config = json.load(f)
+    # Inject memory state for UI sync
+    config["system_memory"] = brain.memory.layers
+    return config
 
 @app.get("/api/vitals")
 async def get_vitals():
@@ -170,6 +155,15 @@ async def websocket_endpoint(websocket: WebSocket):
                 os.remove(temp_filename)
 
             if not transcription:
+                continue
+
+            # Wake Word / Direct Address Check
+            # Requirement: "listen all the time interact only if words are addressed to it"
+            is_addressed = any(kw in transcription.lower() for kw in ["friday", "hey friday", "computer"])
+
+            if not is_addressed:
+                # Still record to episodic memory for "background awareness" but don't respond
+                brain.memory.add_episodic("background", transcription)
                 continue
 
             # Update Memory & Check ARG triggers

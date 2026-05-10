@@ -17,6 +17,9 @@ function connectWebSocket() {
                 if (currentHeldText.includes("PENDING_APPROVAL:")) {
                     handleApprovalRequest(currentHeldText);
                 }
+                if (msg.orb_color && window.setOrbColor) {
+                    window.setOrbColor(msg.orb_color);
+                }
             } else if (msg.type === 'status') {
                 setStatus(msg.state);
             } else if (msg.type === 'arg_unlocked') {
@@ -317,15 +320,39 @@ function collectSettings() {
 // Vitals Monitoring
 async function updateVitals() {
     try {
-        const resp = await fetch('/api/config'); // This just returns config, let's add a /api/vitals
         const vitalsResp = await fetch('/api/vitals');
         const vitals = await vitalsResp.json();
 
         document.getElementById('cpu-bar').style.width = vitals.cpu_usage + '%';
         document.getElementById('ram-bar').style.width = vitals.memory_usage + '%';
+
+        // Also update tasks while we're at it
+        const configResp = await fetch('/api/config');
+        const config = await configResp.json();
+        renderTaskList(config.system_memory?.task || []);
     } catch (e) {
         // Silently fail if endpoint not yet ready
     }
+}
+
+function renderTaskList(tasks) {
+    const list = document.getElementById('task-list');
+    const count = document.getElementById('task-count');
+    if (!list) return;
+
+    list.innerHTML = '';
+    count.innerText = tasks.length;
+
+    tasks.forEach(task => {
+        const div = document.createElement('div');
+        div.className = `task-item entry ${task.status}`;
+        div.innerHTML = `
+            <div class="priority ${task.priority}">${task.priority}</div>
+            <div class="name">${task.name}</div>
+            <div class="desc">${task.desc}</div>
+        `;
+        list.appendChild(div);
+    });
 }
 
 setInterval(updateVitals, 2000);

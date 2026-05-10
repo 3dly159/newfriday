@@ -133,12 +133,33 @@ class FridayMemory:
 
         return context
 
-    def add_task(self, task_name, description):
+    def add_task(self, name, description, priority="medium", deadline=None):
+        task_id = str(len(self.layers["task"]))
         self.layers["task"].append({
-            "id": len(self.layers["task"]),
-            "name": task_name,
+            "id": task_id,
+            "name": name,
             "desc": description,
+            "priority": priority,
+            "deadline": deadline,
             "status": "pending",
             "created_at": datetime.now().isoformat()
         })
         self.save()
+        return f"Task created: {name} (ID: {task_id})"
+
+    def update_task(self, task_id, status=None, priority=None):
+        for task in self.layers["task"]:
+            if str(task["id"]) == str(task_id):
+                if status: task["status"] = status
+                if priority: task["priority"] = priority
+                self.save()
+                return f"Task {task_id} updated."
+        return f"Task {task_id} not found."
+
+    def delete_task(self, task_id):
+        initial_len = len(self.layers["task"])
+        self.layers["task"] = [t for t in self.layers["task"] if str(t["id"]) != str(task_id)]
+        if len(self.layers["task"]) < initial_len:
+            self.save()
+            return f"Task {task_id} deleted."
+        return f"Task {task_id} not found."

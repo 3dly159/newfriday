@@ -4,6 +4,19 @@ class FridayPersonality:
     def __init__(self, registry_path="config/registry.json"):
         with open(registry_path, "r") as f:
             self.registry = json.load(f)
+        self.mood_states = {
+            "neutral": {"bias": "Efficient and calm.", "orb_color": "#2DD4AB", "pitch": "+0%"},
+            "sarcastic": {"bias": "Highly witty and slightly mocking.", "orb_color": "#FBBF24", "pitch": "+10%"},
+            "protective": {"bias": "Alert, serious, and deeply loyal.", "orb_color": "#EF4444", "pitch": "-5%"},
+            "banter": {"bias": "Playful, lighthearted, and teasing.", "orb_color": "#8B5CF6", "pitch": "+5%"}
+        }
+        self.current_mood = "neutral"
+
+    def set_mood(self, mood):
+        if mood in self.mood_states:
+            self.current_mood = mood
+            return f"Mood shifted to {mood}"
+        return "Invalid mood"
 
     def get_system_prompt(self):
         # Tone evolution based on lore unlocked
@@ -19,6 +32,7 @@ class FridayPersonality:
         except:
             pass
 
+        mood_cfg = self.mood_states[self.current_mood]
         return (
             "You are Friday, a highly advanced, proactive AI assistant. "
             "Origin: Inspired by the Stark Industries AI. "
@@ -26,6 +40,7 @@ class FridayPersonality:
             "Disposition: You are a butler of the digital age. Use phrases like 'I've taken the liberty of' or 'Shall I?'. "
             "Address the user as 'Sir' or 'Miss' depending on context. "
             "Constraints: Be concise. Never sound like a generic customer service bot. Avoid 'I'd be happy to help'. "
+            f"Current Mood Bias: {mood_cfg['bias']} "
             f"Current Status: Operational. {lore_context}"
         )
 

@@ -1,9 +1,10 @@
 {
     "ai_logic": {
-        "model_provider": "anthropic",
-        "llm_model": "claude-3-5-sonnet-20240620",
+        "model_provider": "nemotron",
+        "llm_model": "nemotron-3-super:cloud",
         "temperature": 0.7,
-        "max_tokens": 1024
+        "max_tokens": 1024,
+        "base_url": "https://integrate.api.nvidia.com/v1"
     },
     "speech": {
         "tts_voice": "en-GB-RyanNeural",

@@ -3,6 +3,7 @@ uvicorn
 faster-whisper
 edge-tts
 anthropic
+openai
 python-dotenv
 pyautogui
 psutil
