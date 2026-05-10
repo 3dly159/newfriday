@@ -197,14 +197,32 @@ Friday’s memory is organized into distinct, specialized layers to mimic human-
 
 ## 6. System Requirements & Security
 
-### 6.1 Requirements
-*   **Compute:** High-performance GPU recommended for local Whisper and LoRA-enhanced inference.
-*   **OS:** Windows/Linux/macOS with appropriate permissions for HID and system control.
+### 6.1 Hardware & OS Compatibility
+To achieve the sub-second latency and smooth 3D visuals requested, the following hardware is recommended:
 
-### 6.2 Security & Safety
-*   **Local Processing:** Whenever possible, process data locally (Whisper) to ensure privacy.
-*   **Permission Tiers:** User-defined boundaries for mouse/keyboard control and file modification.
-*   **Sandboxing:** Execution of unknown scripts in restricted environments where applicable.
+*   **Compute (AI Inference):**
+    *   **NVIDIA GPU:** RTX 3060 or better (8GB+ VRAM) for CUDA-accelerated Whisper and local LoRA inference.
+    *   **Apple Silicon:** M1 Pro or better for Metal-accelerated inference.
+    *   **RAM:** 16GB minimum (32GB recommended for multi-agent orchestration).
+*   **Microphone:** High-sensitivity directional microphone with noise-cancellation to ensure STT accuracy during always-on listening.
+*   **OS Compatibility:**
+    *   **Windows 10/11:** Full support for `PyAutoGUI` and `edge-tts`. Requires Administrative privileges for app orchestration.
+    *   **macOS 12+:** Requires "Accessibility" and "Input Monitoring" permissions in System Settings for HID control.
+    *   **Linux (Ubuntu/Fedora):** Requires `X11` or `Wayland` (with specific bridge) for mouse/keyboard control.
+
+### 6.2 Safety & Privacy Manifesto (The Iron-Clad Oath)
+Given Friday's deep integration and always-listening nature, the system must adhere to strict ethical and security protocols.
+
+*   **Privacy by Design:**
+    *   **Always-Listening, Never-Storing:** Friday’s sensory audio buffer is ephemeral. Audio is processed into text via local Whisper and then immediately purged. No raw audio is ever sent to the cloud or stored on disk.
+    *   **Local-First Processing:** Core system interactions (HID control, file reading) happen entirely on the host machine.
+*   **Security & Consent:**
+    *   **The Permission Interlock:** Any action involving file deletion, network data exfiltration, or script execution requires an explicit UI confirmation or a specific voice authorization (e.g., "Confirmed, Friday").
+    *   **Transparent Logging:** Every action Friday takes is logged in a user-readable, immutable audit trail (`logs/activity.jsonl`).
+    *   **Emergency Kill-Switch:** A physical key combination (e.g., `Shift + Esc`) or a specific voice command ("Friday, Stand Down") immediately terminates all background processes and agent activities.
+*   **Ethical AI Boundaries:**
+    *   **No Harm:** Friday is programmed with a "cruelty guardrail" ensuring responses remain affectionate and never malicious.
+    *   **User Sovereignty:** Friday is a tool and a companion, but the user remains the ultimate authority. Friday will never attempt to override a direct user command related to system safety.
 
 ---
 
@@ -503,9 +521,10 @@ Friday maintains the "game" element by planting "Easter Eggs" and "Discoveries."
 ---
 
 ## 13. Implementation Roadmap
-1.  **Phase 1:** Basic UI (The Orb) + Whisper/Edge TTS integration.
-2.  **Phase 2:** Tool use and system integration (App opening, HID control).
-3.  **Phase 3:** Layered memory implementation and Vector DB setup.
-4.  **Phase 4:** Proactive logic and autonomous "thought" cycles.
-5.  **Phase 5:** Clawhub/Claude Skill integration and self-improvement modules.
-6.  **Phase 6:** Multi-agent orchestration.
+1.  **Phase 1: Foundation.** Basic UI (The Orb) + Whisper/Edge TTS integration.
+2.  **Phase 2: Interaction & Identity.** Glass UI, latency pipelining, and personality.
+3.  **Phase 3: System Mastery.** HID control, secure scripting, and Stark HUD.
+4.  **Phase 4: Cognitive Architecture.** Layered memory, sentience loops, and Neural Map.
+5.  **Phase 5: Orchestration & Evolution.** Multi-agent "Legion", self-improvement, and ARG discovery.
+6.  **Phase 6: Hardening & Distribution.** Performance profiling, security hardening, and packaging.
+7.  **Phase 7: Narrative Expansion.** Quest orchestration and the "Convergence" finale.
