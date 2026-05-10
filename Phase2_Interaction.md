@@ -7,6 +7,7 @@ This phase transforms Friday from a simple loop into a high-performance, charism
     *   Build the 56px fixed header with the "Friday" wordmark.
     *   Implement the status dot logic (Teal = Listening, Blue = Processing, Gray = Idle).
     *   Create the 266px activity panel (right-side) with a toggle to collapse to 36px.
+    *   **Task 4: The Settings Panel.** Implement a modal glass-morphism overlay that exposes sliders and inputs for all Registry parameters (Voice, Model, Threshold, etc.).
 *   **Task 2: UI Styling.**
     *   Apply `backdrop-filter: blur(14px)` and the specified `rgba` borders to all panels.
     *   Use the **Inter** font family across the UI.

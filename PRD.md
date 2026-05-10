@@ -520,7 +520,37 @@ Friday maintains the "game" element by planting "Easter Eggs" and "Discoveries."
 
 ---
 
-## 13. Advanced Operational Considerations
+## 13. Settings & Configurability (The Command Center)
+Friday is designed for total user control. Every core parameter is exposed via a centralized "Registry" system and a glassmorphism Settings Panel in the UI.
+
+### 13.1 The Friday Core Registry
+A centralized JSON/YAML configuration file (`config/registry.json`) that governs all system behaviors.
+
+*   **AI & Logic Settings:**
+    *   `model_provider`: Switch between `anthropic`, `openai`, or `local`.
+    *   `llm_model`: Choose specific models (e.g., `claude-3-5-sonnet`, `gpt-4o`, `llama-3-8b`).
+    *   `temperature`: Adjust creativity/randomness.
+    *   `max_tokens`: Control response length.
+*   **Speech & Voice Settings:**
+    *   `tts_voice`: Select voice profiles (e.g., "The Butler", "The Boss").
+    *   `speech_rate`: Adjust TTS speed (0.5x to 2.0x).
+    *   `vad_threshold`: Fine-tune silence detection window (ms).
+    *   `whisper_model`: Switch STT models (e.g., `tiny.en`, `base.en`, `medium.en`).
+*   **UI & Visual Settings:**
+    *   `orb_glow_intensity`: Multiplier for bloom and shader brightness.
+    *   `hud_translucency`: Opacity for the Stark HUD overlay.
+    *   `theme_color`: Global accent color (default: `#2DD4AB`).
+*   **System & Security Settings:**
+    *   `api_keys`: Encrypted storage for provider keys.
+    *   `auto_approve_hid`: Toggle for mouse/keyboard automation confirmation.
+    *   `proactive_interval`: Frequency of background thought cycles (minutes).
+
+### 13.2 Real-time Hot-Reloading
+Changes made in the Settings UI are applied immediately without restarting the service (using a file-watch or socket-emit mechanism).
+
+---
+
+## 14. Advanced Operational Considerations
 
 ### 13.1 Total Sovereignty (The Local LLM Path)
 While the default architecture uses Claude for reasoning, Friday supports a "Total Sovereignty" mode for 100% offline air-gapped operation.
@@ -535,19 +565,19 @@ Friday must maintain character even when technology fails.
 
 ---
 
-## 14. Future Horizons: The Expansion
+## 15. Future Horizons: The Expansion
 
-### 14.1 The Mobile Companion ("Friday Mobile")
+### 15.1 The Mobile Companion ("Friday Mobile")
 *   **Concept:** A lightweight companion app that syncs with the desktop "Brain."
 *   **Function:** Access Friday's memory, receive proactive alerts on your phone, and command your home computer remotely.
 
-### 14.2 IoT & Home Automation (The "Stark Mansion" Protocol)
+### 15.2 IoT & Home Automation (The "Stark Mansion" Protocol)
 *   **Concept:** Integrating Friday with Home Assistant or Zigbee/Z-Wave devices.
 *   **Function:** Friday controls lighting, climate, and security cameras, unifying the digital and physical environments.
 
 ---
 
-## 15. Implementation Roadmap
+## 16. Implementation Roadmap
 1.  **Phase 1: Foundation.** Basic UI (The Orb) + Whisper/Edge TTS integration.
 2.  **Phase 2: Interaction & Identity.** Glass UI, latency pipelining, and personality.
 3.  **Phase 3: System Mastery.** HID control, secure scripting, and Stark HUD.

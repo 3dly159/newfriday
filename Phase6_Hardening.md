@@ -18,6 +18,7 @@ This phase prepares Friday for real-world deployment, focusing on reliability, r
     *   Users must be able to toggle "Read Only", "Write Files", and "HID Control" on a per-session or per-skill basis.
 *   **Task 2: Secure Key Management.**
     *   Ensure all API keys (Anthropic, Edge TTS, etc.) are stored in a secure local vault or OS-level Keychain, never in plaintext.
+    *   Implement an encryption layer for the `registry.json` file to protect user configuration data.
 *   **Task 3: Privacy Audit.**
     *   Verify that audio buffers from the Sensory Memory layer are purged from memory immediately after transcription.
 
