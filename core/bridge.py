@@ -8,9 +8,10 @@ try:
     import pyautogui
     # Disable fail-safe for ARG "chaos" mode if desired, but keep it on for safety by default
     pyautogui.FAILSAFE = True
-except (ImportError, Exception):
-    # Many headless environments will throw errors on import (e.g. DISPLAY missing)
+except (ImportError, Exception) as e:
+    # Many headless environments will throw errors on import (e.g. DISPLAY missing or missing tkinter)
     pyautogui = None
+    print(f"DEBUG: pyautogui could not be initialized: {e}")
 
 class PermissionManager:
     def __init__(self, config_path="config/permissions.json"):

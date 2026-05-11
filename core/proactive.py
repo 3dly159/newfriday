@@ -76,14 +76,26 @@ class ProactiveEngine:
 
         try:
             # We use a non-streaming call for the internal thought
-            response = await self.brain.client.messages.create(
-                model=self.brain.config["ai_logic"]["llm_model"],
-                max_tokens=500,
-                system="You are the internal monologue of Friday, an advanced AI. Be proactive, observant, and slightly protective.",
-                messages=[{"role": "user", "content": thought_prompt}]
-            )
+            if self.brain.provider == "anthropic":
+                response = await self.brain.client.messages.create(
+                    model=self.brain.config["ai_logic"]["llm_model"],
+                    max_tokens=500,
+                    system="You are the internal monologue of Friday, an advanced AI. Be proactive, observant, and slightly protective.",
+                    messages=[{"role": "user", "content": thought_prompt}]
+                )
+                text = response.content[0].text
+            else:
+                response = await self.brain.client.chat.completions.create(
+                    model=self.brain.config["ai_logic"]["llm_model"],
+                    messages=[
+                        {"role": "system", "content": "You are the internal monologue of Friday, an advanced AI. Be proactive, observant, and slightly protective."},
+                        {"role": "user", "content": thought_prompt}
+                    ],
+                    max_tokens=500
+                )
+                text = response.choices[0].message.content
 
-            decision_data = json.loads(response.content[0].text)
+            decision_data = json.loads(text)
             logger.info(f"Proactive Thought: {decision_data['thought']}")
 
             # Store thought in memory (Script layer or a new 'thought' layer)

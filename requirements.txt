@@ -4,11 +4,13 @@ faster-whisper
 edge-tts
 anthropic
 openai
-python-dotenv
-pyautogui
 psutil
+pyautogui
+opencv-python
+Pillow
 chromadb
 pytest
+pytest-asyncio
 httpx
 python-multipart
 websockets

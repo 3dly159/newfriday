@@ -13,13 +13,29 @@ def check_dependencies():
         import faster_whisper
         import edge_tts
         import chromadb
-        # import pyautogui # Wrapped in bridge
+        # pyautogui is imported in core/bridge.py to handle headless environments
         import psutil
         import cv2
         from PIL import Image
+
+        # Linux specific GUI dependencies
+        if platform.system() == "Linux":
+            try:
+                import tkinter
+            except ImportError:
+                print("\n⚠️  Warning: 'tkinter' is missing.")
+                print("   On Linux, Friday needs tkinter for UI automation (mouse/keyboard).")
+                print("   Run: sudo apt-get install python3-tk")
+                print("   (Continuing launch, HID control will be disabled)\n")
+
+            if "DISPLAY" not in os.environ:
+                print("\n⚠️  Warning: 'DISPLAY' environment variable is not set.")
+                print("   Friday is running in a headless environment.")
+                print("   UI automation (mouse/keyboard) will be disabled.\n")
+
         print("✅ Core dependencies found.")
     except (ImportError, KeyError) as e:
-        print(f"❌ Missing dependency: {e.name}")
+        print(f"❌ Missing dependency: {getattr(e, 'name', str(e))}")
         print("Running: pip install -r requirements.txt")
         subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
 
