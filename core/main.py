@@ -162,14 +162,20 @@ async def websocket_endpoint(websocket: WebSocket):
             if not transcription:
                 continue
 
+            # Log transcription
+            print(f"\n[TRANSCRIPTION] {transcription}")
+
             # Wake Word / Direct Address Check
             # Requirement: "listen all the time interact only if words are addressed to it"
             is_addressed = any(kw in transcription.lower() for kw in ["friday", "hey friday", "computer"])
 
             if not is_addressed:
                 # Still record to episodic memory for "background awareness" but don't respond
+                print(f"[BACKGROUND] Recorded: {transcription}")
                 brain.memory.add_episodic("background", transcription)
                 continue
+
+            print(f"[USER] {transcription}")
 
             # Update Memory & Check ARG triggers
             unlocked = brain.memory.add_episodic("user", transcription)
@@ -182,7 +188,11 @@ async def websocket_endpoint(websocket: WebSocket):
             held_sentence = None
             current_buffer = ""
 
+            full_reply = ""
+            print("[FRIDAY] ", end="", flush=True)
             async for token in brain.get_streaming_response(transcription):
+                full_reply += token
+                print(token, end="", flush=True)
                 current_buffer += token
                 if is_sentence_end(current_buffer):
                     if held_sentence:
@@ -194,6 +204,7 @@ async def websocket_endpoint(websocket: WebSocket):
             final_text = (held_sentence or "") + current_buffer
             if final_text.strip():
                 await process_and_send_segment(websocket, final_text, is_final=True)
+            print() # End Friday line
 
     except WebSocketDisconnect:
         print("Client disconnected")
