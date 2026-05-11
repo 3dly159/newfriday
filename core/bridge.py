@@ -4,14 +4,17 @@ import psutil
 import subprocess
 import platform
 
-try:
-    import pyautogui
-    # Disable fail-safe for ARG "chaos" mode if desired, but keep it on for safety by default
-    pyautogui.FAILSAFE = True
-except (ImportError, Exception) as e:
-    # Many headless environments will throw errors on import (e.g. DISPLAY missing or missing tkinter)
-    pyautogui = None
-    print(f"DEBUG: pyautogui could not be initialized: {e}")
+# Lazy load pyautogui to prevent initialization hangs during server startup
+def get_pyautogui():
+    try:
+        import pyautogui
+        # Disable fail-safe for ARG "chaos" mode if desired, but keep it on for safety by default
+        pyautogui.FAILSAFE = True
+        return pyautogui
+    except (ImportError, Exception) as e:
+        # Many headless environments will throw errors on import (e.g. DISPLAY missing or missing tkinter)
+        # print(f"DEBUG: pyautogui could not be initialized: {e}")
+        return None
 
 class PermissionManager:
     def __init__(self, config_path="config/permissions.json"):
@@ -26,8 +29,11 @@ class PermissionManager:
 
     def load(self):
         if os.path.exists(self.config_path):
-            with open(self.config_path, "r") as f:
-                self.permissions.update(json.load(f))
+            try:
+                with open(self.config_path, "r") as f:
+                    self.permissions.update(json.load(f))
+            except Exception:
+                pass
 
     def save(self):
         os.makedirs(os.path.dirname(self.config_path), exist_ok=True)
@@ -43,6 +49,13 @@ class FridayBridge:
     def __init__(self):
         self.system = platform.system()
         self.permissions = PermissionManager()
+        self._pyautogui = None
+
+    @property
+    def pyautogui(self):
+        if self._pyautogui is None:
+            self._pyautogui = get_pyautogui()
+        return self._pyautogui
 
     def get_system_vitals(self):
         """Returns CPU, RAM, and Battery status."""
@@ -54,7 +67,6 @@ class FridayBridge:
         }
 
     def _get_cpu_temp(self):
-        # Implementation varies wildly by OS/Hardware, returning 0 as placeholder
         return 0
 
     def move_mouse(self, x: int, y: int):
@@ -62,33 +74,42 @@ class FridayBridge:
         if perm == "deny": return "Permission denied: HID Control"
         if perm == "ask": return "PENDING_APPROVAL: hid_control"
 
-        if pyautogui:
-            pyautogui.moveTo(x, y, duration=0.5)
-            return f"Moved mouse to {x}, {y}"
-        return "Mouse control unavailable"
+        if self.pyautogui:
+            try:
+                self.pyautogui.moveTo(x, y, duration=0.5)
+                return f"Moved mouse to {x}, {y}"
+            except Exception as e:
+                return f"Mouse move failed: {e}"
+        return "Mouse control unavailable (Missing tkinter/DISPLAY)"
 
     def click(self, x: int = None, y: int = None):
         perm = self.permissions.check("hid_control")
         if perm == "deny": return "Permission denied: HID Control"
         if perm == "ask": return "PENDING_APPROVAL: hid_control"
 
-        if pyautogui:
-            if x is not None and y is not None:
-                pyautogui.click(x, y)
-            else:
-                pyautogui.click()
-            return "Clicked"
-        return "Click control unavailable"
+        if self.pyautogui:
+            try:
+                if x is not None and y is not None:
+                    self.pyautogui.click(x, y)
+                else:
+                    self.pyautogui.click()
+                return "Clicked"
+            except Exception as e:
+                return f"Click failed: {e}"
+        return "Click control unavailable (Missing tkinter/DISPLAY)"
 
     def type_text(self, text: str):
         perm = self.permissions.check("hid_control")
         if perm == "deny": return "Permission denied: HID Control"
         if perm == "ask": return "PENDING_APPROVAL: hid_control"
 
-        if pyautogui:
-            pyautogui.write(text, interval=0.1)
-            return f"Typed: {text}"
-        return "Keyboard control unavailable"
+        if self.pyautogui:
+            try:
+                self.pyautogui.write(text, interval=0.1)
+                return f"Typed: {text}"
+            except Exception as e:
+                return f"Type failed: {e}"
+        return "Keyboard control unavailable (Missing tkinter/DISPLAY)"
 
     def open_app(self, app_name: str):
         try:
@@ -108,6 +129,7 @@ class FridayBridge:
         if perm == "deny": return "Permission denied: Script Execution"
         if perm == "ask": return "PENDING_APPROVAL: script_execution"
 
+        os.makedirs("data", exist_ok=True)
         temp_file = f"data/temp_script.{'py' if language == 'python' else 'sh'}"
         with open(temp_file, "w") as f:
             f.write(code)
@@ -118,7 +140,7 @@ class FridayBridge:
             else:
                 result = subprocess.run(["bash", temp_file], capture_output=True, text=True, timeout=30)
 
-            os.remove(temp_file)
+            if os.path.exists(temp_file): os.remove(temp_file)
             return {
                 "stdout": result.stdout,
                 "stderr": result.stderr,

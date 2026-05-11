@@ -13,7 +13,7 @@ def check_dependencies():
         import faster_whisper
         import edge_tts
         import chromadb
-        # pyautogui is imported in core/bridge.py to handle headless environments
+        # import pyautogui # Moved to lazy loading in core/bridge.py
         import psutil
         import cv2
         from PIL import Image
@@ -26,7 +26,7 @@ def check_dependencies():
                 print("\n⚠️  Warning: 'tkinter' is missing.")
                 print("   On Linux, Friday needs tkinter for UI automation (mouse/keyboard).")
                 print("   Run: sudo apt-get install python3-tk")
-                print("   (Continuing launch, HID control will be disabled)\n")
+                print("   (Note: Friday will continue to launch, but HID control will be disabled)\n")
 
             if "DISPLAY" not in os.environ:
                 print("\n⚠️  Warning: 'DISPLAY' environment variable is not set.")
@@ -45,11 +45,17 @@ def check_env():
         print("⚠️ Warning: config/registry.json not found. Creating default.")
         os.makedirs("config", exist_ok=True)
         default_registry = {
-            "model_provider": "anthropic",
-            "llm_model": "claude-3-5-sonnet-20241022",
-            "voice_profile": "en-GB-RyanNeural",
-            "proactive_interval": 15,
-            "theme_color": "#2DD4AB"
+            "ai_logic": {
+                "model_provider": "anthropic",
+                "llm_model": "claude-3-5-sonnet-20241022"
+            },
+            "voice": {
+                "voice_profile": "en-GB-RyanNeural"
+            },
+            "system": {
+                "proactive_interval": 15,
+                "theme_color": "#2DD4AB"
+            }
         }
         with open("config/registry.json", "w") as f:
             json.dump(default_registry, f, indent=4)
@@ -61,7 +67,8 @@ def check_env():
 def start_friday():
     print("\n🚀 Initializing Friday AI...")
     print(f"Platform: {platform.system()} {platform.release()}")
-    print("UI: http://localhost:8000")
+    print("UI Endpoint: http://localhost:8000")
+    print("Note: If you see a 'MouseInfo' or 'tkinter' warning below, please ignore it. Friday is still starting...")
 
     # Add project root to PYTHONPATH
     env = os.environ.copy()
@@ -69,7 +76,11 @@ def start_friday():
 
     try:
         # Launch the server
-        cmd = [sys.executable, "-m", "uvicorn", "core.main:app", "--host", "0.0.0.0", "--port", "8000"]
+        # We use a slight delay before printing final success to allow uvicorn to bind
+        cmd = [sys.executable, "-m", "uvicorn", "core.main:app", "--host", "0.0.0.0", "--port", "8000", "--log-level", "info"]
+
+        # On some Linux systems, pyautogui's dependency 'MouseInfo' prints a note
+        # that looks like an error but isn't blocking.
         subprocess.run(cmd, env=env)
     except KeyboardInterrupt:
         print("\n👋 Friday is standing down. Goodbye, Sir.")
