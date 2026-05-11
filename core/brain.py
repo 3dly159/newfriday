@@ -292,8 +292,7 @@ class FridayBrain:
                     final_text += block.text
                     yield block.text
         else:
-            # OpenAI / Nemotron path
-            # Convert tools to OpenAI format
+            # OpenAI / Nemotron / Ollama path with STREAMING
             openai_tools = []
             for t in self.tools:
                 openai_tools.append({
@@ -305,54 +304,69 @@ class FridayBrain:
                     }
                 })
 
-            # Nemotron doesn't always support the exact same message structure as Claude,
-            # but usually follows OpenAI.
-            response = await self.client.chat.completions.create(
-                model=self.config["ai_logic"]["llm_model"],
-                messages=[{"role": "system", "content": system_prompt}] + messages,
-                tools=openai_tools,
-                tool_choice="auto"
-            )
-
-            while response.choices[0].message.tool_calls:
-                tool_calls = response.choices[0].message.tool_calls
-
-                # Normalize assistant message
-                assistant_msg = {
-                    "role": "assistant",
-                    "content": response.choices[0].message.content,
-                    "tool_calls": [
-                        {
-                            "id": tc.id,
-                            "type": "function",
-                            "function": {
-                                "name": tc.function.name,
-                                "arguments": tc.function.arguments
-                            }
-                        } for tc in tool_calls
-                    ]
-                }
-                messages.append(assistant_msg)
-
-                for tool_call in tool_calls:
-                    result = await self.execute_tool(tool_call.function.name, json.loads(tool_call.function.arguments))
-                    messages.append({
-                        "role": "tool",
-                        "tool_call_id": tool_call.id,
-                        "name": tool_call.function.name,
-                        "content": json.dumps(result)
-                    })
-                    yield f"[System: Executing {tool_call.function.name}...]"
+            final_text = ""
+            while True:
+                # We start with a streaming request
+                # Note: Many local providers like Ollama have issues with tool use + streaming combined
+                # in the same turn. We'll stream if there are no tool calls, but handle tools atomically.
 
                 response = await self.client.chat.completions.create(
                     model=self.config["ai_logic"]["llm_model"],
                     messages=[{"role": "system", "content": system_prompt}] + messages,
-                    tools=openai_tools
+                    tools=openai_tools,
+                    stream=True
                 )
 
-            final_text = response.choices[0].message.content
-            if final_text:
-                yield final_text
+                tool_calls_collected = []
+                current_text_chunk = ""
+
+                async for chunk in response:
+                    delta = chunk.choices[0].delta
+
+                    # Collect Tool Calls (they usually arrive in chunks)
+                    if delta.tool_calls:
+                        for tc in delta.tool_calls:
+                            if len(tool_calls_collected) <= tc.index:
+                                tool_calls_collected.append({
+                                    "id": tc.id,
+                                    "type": "function",
+                                    "function": {"name": "", "arguments": ""}
+                                })
+                            if tc.function.name:
+                                tool_calls_collected[tc.index]["function"]["name"] += tc.function.name
+                            if tc.function.arguments:
+                                tool_calls_collected[tc.index]["function"]["arguments"] += tc.function.arguments
+
+                    # Collect Text
+                    if delta.content:
+                        current_text_chunk += delta.content
+                        final_text += delta.content
+                        yield delta.content
+
+                if tool_calls_collected:
+                    # Normalize assistant message for history
+                    assistant_msg = {
+                        "role": "assistant",
+                        "content": current_text_chunk or "",
+                        "tool_calls": tool_calls_collected
+                    }
+                    messages.append(assistant_msg)
+
+                    for tool_call in tool_calls_collected:
+                        name = tool_call["function"]["name"]
+                        args = json.loads(tool_call["function"]["arguments"])
+                        result = await self.execute_tool(name, args)
+                        messages.append({
+                            "role": "tool",
+                            "tool_call_id": tool_call["id"],
+                            "name": name,
+                            "content": json.dumps(result)
+                        })
+                        yield f"[System: Executing {name}...]"
+                    # Loop continues to get the final response after tool execution
+                else:
+                    # No more tool calls, we are done
+                    break
 
         if final_text:
             self.memory.add_episodic("assistant", final_text)
