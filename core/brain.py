@@ -316,7 +316,23 @@ class FridayBrain:
 
             while response.choices[0].message.tool_calls:
                 tool_calls = response.choices[0].message.tool_calls
-                messages.append(response.choices[0].message)
+
+                # Normalize assistant message
+                assistant_msg = {
+                    "role": "assistant",
+                    "content": response.choices[0].message.content,
+                    "tool_calls": [
+                        {
+                            "id": tc.id,
+                            "type": "function",
+                            "function": {
+                                "name": tc.function.name,
+                                "arguments": tc.function.arguments
+                            }
+                        } for tc in tool_calls
+                    ]
+                }
+                messages.append(assistant_msg)
 
                 for tool_call in tool_calls:
                     result = await self.execute_tool(tool_call.function.name, json.loads(tool_call.function.arguments))

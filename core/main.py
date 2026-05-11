@@ -125,19 +125,30 @@ def is_sentence_end(text):
 
 async def process_and_send_segment(websocket, text, is_final):
     output_path = f"data/logs/resp_{uuid.uuid4().hex}.mp3"
-    await tts.generate_speech(text, output_path)
+    try:
+        await tts.generate_speech(text, output_path)
 
-    with open(output_path, "rb") as f:
-        audio_bytes = f.read()
+        with open(output_path, "rb") as f:
+            audio_bytes = f.read()
 
-    await websocket.send_json({
-        "type": "speak_segment",
-        "text": text,
-        "is_final": is_final
-    })
-    await websocket.send_bytes(audio_bytes)
-    if os.path.exists(output_path):
-        os.remove(output_path)
+        await websocket.send_json({
+            "type": "speak_segment",
+            "text": text,
+            "is_final": is_final
+        })
+        await websocket.send_bytes(audio_bytes)
+    except Exception as e:
+        logger.error(f"TTS Error: {e}")
+        # Still send text so user can read it even if audio fails
+        await websocket.send_json({
+            "type": "speak_segment",
+            "text": text,
+            "is_final": is_final,
+            "error": "TTS_FAILED"
+        })
+    finally:
+        if os.path.exists(output_path):
+            os.remove(output_path)
 
 @app.websocket("/ws/voice")
 async def websocket_endpoint(websocket: WebSocket):
@@ -199,6 +210,16 @@ async def websocket_endpoint(websocket: WebSocket):
             async for token in brain.get_streaming_response(transcription):
                 full_reply += token
                 print(token, end="", flush=True)
+
+                # Filter out system notifications from the TTS pipeline
+                if token.startswith("[System:"):
+                    await websocket.send_json({
+                        "type": "status",
+                        "state": "processing",
+                        "notification": token
+                    })
+                    continue
+
                 current_buffer += token
                 if is_sentence_end(current_buffer):
                     if held_sentence:
