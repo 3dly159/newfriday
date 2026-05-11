@@ -10,7 +10,8 @@
         "tts_voice": "en-GB-RyanNeural",
         "speech_rate": "+0%",
         "vad_threshold": 800,
-        "whisper_model": "base.en"
+        "whisper_model": "base.en",
+        "interaction_mode": "continuous"
     },
     "ui": {
         "orb_glow_intensity": 1.0,

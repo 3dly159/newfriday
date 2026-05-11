@@ -165,11 +165,17 @@ async def websocket_endpoint(websocket: WebSocket):
             # Log transcription
             print(f"\n[TRANSCRIPTION] {transcription}")
 
+            # Check interaction mode from registry
+            mode = brain.config.get("speech", {}).get("interaction_mode", "wake_word")
+
             # Wake Word / Direct Address Check
             # Requirement: "listen all the time interact only if words are addressed to it"
             is_addressed = any(kw in transcription.lower() for kw in ["friday", "hey friday", "computer"])
 
-            if not is_addressed:
+            # Contextual greeting exception (always allow responses to simple greetings)
+            is_greeting = any(transcription.lower().strip() == g for g in ["hello", "good morning", "good evening", "hi friday"])
+
+            if mode == "wake_word" and not is_addressed and not is_greeting:
                 # Still record to episodic memory for "background awareness" but don't respond
                 print(f"[BACKGROUND] Recorded: {transcription}")
                 brain.memory.add_episodic("background", transcription)
