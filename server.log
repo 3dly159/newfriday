@@ -1,5 +1,53 @@
+Client disconnected
+INFO:     127.0.0.1:33540 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33540 - "GET /ui/css/style.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33542 - "GET /ui/js/orb.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33546 - "GET /ui/js/app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33546 - "GET /ui/js/neural.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33550 - "WebSocket /ws/voice" [accepted]
+INFO:     connection open
 INFO:httpx:HTTP Request: GET https://huggingface.co/api/models/Systran/faster-whisper-base/revision/main "HTTP/1.1 200 OK"
-INFO:     Started server process [633251]
+INFO:     127.0.0.1:33546 - "GET /api/vitals HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33546 - "GET /api/config HTTP/1.1" 200 OK
+INFO:     Started server process [660544]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
-INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+ERROR:    [Errno 98] error while attempting to bind on address ('0.0.0.0', 8000): address already in use
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     127.0.0.1:33546 - "GET /api/vitals HTTP/1.1" 200 OK
+INFO:     connection closed
+Checking dependencies...
+
+⚠️  Warning: 'DISPLAY' environment variable is not set.
+   Friday is running in a headless environment.
+   UI automation (mouse/keyboard) will be disabled.
+
+✅ Core dependencies found.
+Checking environment...
+⚠️ Warning: ANTHROPIC_API_KEY environment variable not set.
+Friday will run in 'Blackout' mode with limited intelligence unless a local provider is configured.
+
+🚀 Initializing Friday AI...
+Platform: Linux 6.8.0
+UI Endpoint: http://localhost:8000
+Note: If you see a 'MouseInfo' or 'tkinter' warning below, please ignore it. Friday is still starting...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [652707]
+Checking dependencies...
+
+⚠️  Warning: 'DISPLAY' environment variable is not set.
+   Friday is running in a headless environment.
+   UI automation (mouse/keyboard) will be disabled.
+
+✅ Core dependencies found.
+Checking environment...
+⚠️ Warning: ANTHROPIC_API_KEY environment variable not set.
+Friday will run in 'Blackout' mode with limited intelligence unless a local provider is configured.
+
+🚀 Initializing Friday AI...
+Platform: Linux 6.8.0
+UI Endpoint: http://localhost:8000
+Note: If you see a 'MouseInfo' or 'tkinter' warning below, please ignore it. Friday is still starting...

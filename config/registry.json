@@ -1,7 +1,7 @@
 {
     "ai_logic": {
         "model_provider": "ollama",
-        "llm_model": "nemotron-3-super:cloud",
+        "llm_model": "llama3",
         "temperature": 0.7,
         "max_tokens": 1024,
         "base_url": "http://localhost:11434/v1"
