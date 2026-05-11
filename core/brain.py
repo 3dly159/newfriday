@@ -17,6 +17,11 @@ class FridayBrain:
         self.provider = self.config["ai_logic"].get("model_provider", "anthropic")
         if self.provider == "anthropic":
             self.client = AsyncAnthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+        elif self.provider == "ollama":
+            self.client = AsyncOpenAI(
+                api_key="ollama",
+                base_url=self.config["ai_logic"].get("base_url", "http://localhost:11434/v1")
+            )
         else:
             # For Nemotron via NVIDIA NIM or OpenAI
             api_key = os.getenv("NVIDIA_API_KEY") or os.getenv("OPENAI_API_KEY") or "placeholder_for_tests"

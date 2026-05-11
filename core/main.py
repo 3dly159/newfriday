@@ -146,11 +146,16 @@ async def websocket_endpoint(websocket: WebSocket):
     try:
         while True:
             data = await websocket.receive_bytes()
-            temp_filename = f"data/logs/chunk_{uuid.uuid4().hex}.wav"
+            # The browser sends WebM/Opus data usually. Faster-Whisper can often handle it if extension is correct or via ffmpeg
+            temp_filename = f"data/logs/chunk_{uuid.uuid4().hex}.webm"
             with open(temp_filename, "wb") as f:
                 f.write(data)
 
-            transcription = stt.transcribe(temp_filename)
+            try:
+                transcription = stt.transcribe(temp_filename)
+            except Exception as e:
+                logger.error(f"Transcription error: {e}")
+                transcription = ""
             if os.path.exists(temp_filename):
                 os.remove(temp_filename)
 

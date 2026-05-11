@@ -1,21 +1,5 @@
-DEBUG: pyautogui could not be initialized: 'DISPLAY'
-INFO:     127.0.0.1:37456 - "GET / HTTP/1.1" 200 OK
-INFO:     Shutting down
-INFO:     Waiting for application shutdown.
-INFO:     Application shutdown complete.
-INFO:     Finished server process [575644]
-Checking dependencies...
-❌ Missing dependency: cv2
-Running: pip install -r requirements.txt
-Checking environment...
-⚠️ Warning: ANTHROPIC_API_KEY environment variable not set.
-Friday will run in 'Blackout' mode with limited intelligence unless a local provider is configured.
-
-🚀 Initializing Friday AI...
-Platform: Linux 6.8.0
-UI: http://localhost:8000
 INFO:httpx:HTTP Request: GET https://huggingface.co/api/models/Systran/faster-whisper-base/revision/main "HTTP/1.1 200 OK"
-INFO:     Started server process [591145]
+INFO:     Started server process [606882]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)

@@ -97,7 +97,14 @@ async function playSegment(buffer) {
 
 async function startRecording() {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    mediaRecorder = new MediaRecorder(stream);
+
+    const options = { mimeType: 'audio/webm;codecs=opus' };
+    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+        console.warn('webm/opus not supported, falling back to default');
+        delete options.mimeType;
+    }
+
+    mediaRecorder = new MediaRecorder(stream, options);
 
     mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0 && socket.readyState === WebSocket.OPEN) {
@@ -105,8 +112,17 @@ async function startRecording() {
         }
     };
 
-    // Send audio every 3 seconds for now (Phase 1 simplicity)
-    mediaRecorder.start(3000);
+    // Periodically stop and start to send standalone chunks that faster-whisper can parse
+    const chunkInterval = setInterval(() => {
+        if (mediaRecorder.state === 'recording') {
+            mediaRecorder.stop();
+            mediaRecorder.start();
+        } else {
+            clearInterval(chunkInterval);
+        }
+    }, 3000);
+
+    mediaRecorder.start();
 }
 
 // UI Elements
