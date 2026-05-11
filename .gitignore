@@ -1,8 +1,29 @@
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
-.env
-data/logs/*
+.venv/
+env/
+venv/
+ENV/
+build/
+dist/
+
+# Friday Data
+data/logs/*.jsonl
 data/vector_db/
-tests/test_output.mp3
+data/discoveries/*.bak
+*.bak
 server.log
+
+# IDEs
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets
+.env
+config/api_keys.json
