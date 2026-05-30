@@ -95,10 +95,16 @@ async def get_vitals():
     bridge = FridayBridge()
     return bridge.get_system_vitals()
 
+@app.get("/api/health")
+async def get_health():
+    """Reports whether the configured LLM brain is reachable."""
+    return await brain.health_check()
+
 @app.post("/api/config")
 async def update_config(config: dict):
-    with open("config/registry.json", "w") as f:
-        json.dump(config, f, indent=4)
+    # Strip runtime-only keys (e.g. injected system_memory) before persisting.
+    from core.config import save_config
+    save_config(config)
     # Re-initialize modules with new config
     global brain, stt, tts
     brain = FridayBrain()
@@ -156,7 +162,24 @@ async def websocket_endpoint(websocket: WebSocket):
     active_connections.append(websocket)
     try:
         while True:
-            data = await websocket.receive_bytes()
+            message = await websocket.receive()
+            if message.get("type") == "websocket.disconnect":
+                break
+
+            # Control messages (e.g. barge-in interrupt) arrive as text frames.
+            if message.get("text") is not None:
+                try:
+                    ctrl = json.loads(message["text"])
+                except (ValueError, TypeError):
+                    continue
+                if ctrl.get("type") == "interrupt":
+                    print("[BARGE-IN] User interrupted Friday.")
+                continue
+
+            data = message.get("bytes")
+            if not data:
+                continue
+
             # The browser sends WebM/Opus data usually. Faster-Whisper can often handle it if extension is correct or via ffmpeg
             temp_filename = f"data/logs/chunk_{uuid.uuid4().hex}.webm"
             with open(temp_filename, "wb") as f:

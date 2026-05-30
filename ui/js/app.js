@@ -4,6 +4,10 @@ let audioQueue = [];
 let isPlaying = false;
 let currentAudioContext = null;
 let currentHeldText = "";
+let currentSource = null;   // the BufferSource Friday is currently speaking through
+let micAnalyser = null;     // live analyser on the mic input, for barge-in detection
+let bargeInFrames = 0;
+const BARGE_IN_RMS_THRESHOLD = 0.08; // 0..1; raise if echo causes false triggers
 
 function connectWebSocket() {
     socket = new WebSocket(`ws://${window.location.host}/ws/voice`);
@@ -64,6 +68,7 @@ async function playSegment(buffer) {
 
     const audioBuffer = await currentAudioContext.decodeAudioData(buffer);
     const source = currentAudioContext.createBufferSource();
+    currentSource = source;
     const analyser = currentAudioContext.createAnalyser();
 
     source.buffer = audioBuffer;
@@ -95,8 +100,58 @@ async function playSegment(buffer) {
     });
 }
 
+function stopFridaySpeaking() {
+    // Barge-in: silence Friday immediately and discard any queued audio.
+    audioQueue = [];
+    if (currentSource) {
+        try { currentSource.stop(); } catch (e) {}
+        // onended will fire, pumpQueue sees the empty queue and resets to idle.
+    }
+    if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: 'interrupt' }));
+    }
+}
+
+function startMicVAD(stream) {
+    // Watch the mic input; if the user talks while Friday is speaking, cut her off.
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const src = ctx.createMediaStreamSource(stream);
+    micAnalyser = ctx.createAnalyser();
+    micAnalyser.fftSize = 512;
+    src.connect(micAnalyser);
+    const buf = new Uint8Array(micAnalyser.fftSize);
+
+    function tick() {
+        if (!micAnalyser) return; // stopped
+        micAnalyser.getByteTimeDomainData(buf);
+        let sumSquares = 0;
+        for (let i = 0; i < buf.length; i++) {
+            const v = (buf[i] - 128) / 128; // center & normalize to -1..1
+            sumSquares += v * v;
+        }
+        const rms = Math.sqrt(sumSquares / buf.length);
+        if (isPlaying && rms > BARGE_IN_RMS_THRESHOLD) {
+            // Require a few consecutive loud frames to ignore transient blips.
+            if (++bargeInFrames >= 3) {
+                console.log('[BARGE-IN] User spoke over Friday; stopping playback.');
+                stopFridaySpeaking();
+                bargeInFrames = 0;
+            }
+        } else {
+            bargeInFrames = 0;
+        }
+        requestAnimationFrame(tick);
+    }
+    tick();
+}
+
 async function startRecording() {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    // echoCancellation keeps Friday's own voice (through the speakers) from
+    // falsely triggering barge-in detection.
+    const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+    });
+    startMicVAD(stream);
 
     const options = { mimeType: 'audio/webm;codecs=opus' };
     if (!MediaRecorder.isTypeSupported(options.mimeType)) {
@@ -162,6 +217,7 @@ function setStatus(state) {
 }
 
 function stopRecording() {
+    micAnalyser = null; // stops the barge-in VAD loop
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {
         mediaRecorder.stop();
         mediaRecorder.stream.getTracks().forEach(track => track.stop());

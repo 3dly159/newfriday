@@ -33,7 +33,7 @@ class FridayBrain:
         self.personality = FridayPersonality()
         self.bridge = FridayBridge()
         self.memory = FridayMemory()
-        self.legion = LegionBroker()
+        self.legion = LegionBroker(self)
         self.quest = QuestEngine(self.memory)
         self.skills = ClawhubManager(self.memory)
 
@@ -240,42 +240,10 @@ class FridayBrain:
             # Claude expects role and content, and tool use must follow assistant role
             messages.append({"role": entry["role"], "content": entry["content"]})
 
-        if self.provider == "anthropic":
-            # Initial request
-            response = await self.client.messages.create(
-                model=self.config["ai_logic"]["llm_model"],
-                max_tokens=self.config["ai_logic"]["max_tokens"],
-                temperature=self.config["ai_logic"]["temperature"],
-                system=system_prompt,
-                messages=messages,
-                tools=self.tools
-            )
-
-            while response.stop_reason == "tool_use":
-                # Process tool calls
-                tool_calls = [block for block in response.content if block.type == "tool_use"]
-
-                # Update history with assistant's tool call
-                messages.append({"role": "assistant", "content": response.content})
-
-                tool_results = []
-                for tool_call in tool_calls:
-                    result = await self.execute_tool(tool_call.name, tool_call.input)
-                    # Check quest progress on tool execution
-                    quest_updates.extend(self.quest.check_progress(json.dumps(tool_call.input), tool_executed=tool_call.name))
-
-                    tool_results.append({
-                        "type": "tool_result",
-                        "tool_use_id": tool_call.id,
-                        "content": json.dumps(result)
-                    })
-                    # Yield a notification to the UI about the tool being used
-                    yield f"[System: Executing {tool_call.name}...]"
-
-                # Update history with tool results
-                messages.append({"role": "user", "content": tool_results})
-
-                # Get next response from Claude
+        final_text = ""
+        try:
+            if self.provider == "anthropic":
+                # Initial request
                 response = await self.client.messages.create(
                     model=self.config["ai_logic"]["llm_model"],
                     max_tokens=self.config["ai_logic"]["max_tokens"],
@@ -285,74 +253,115 @@ class FridayBrain:
                     tools=self.tools
                 )
 
-            # Final text response
-            final_text = ""
-            for block in response.content:
-                if block.type == "text":
-                    final_text += block.text
-                    yield block.text
-        else:
-            # OpenAI / Nemotron path
-            # Convert tools to OpenAI format
-            openai_tools = []
-            for t in self.tools:
-                openai_tools.append({
-                    "type": "function",
-                    "function": {
-                        "name": t["name"],
-                        "description": t["description"],
-                        "parameters": t["input_schema"]
-                    }
-                })
+                while response.stop_reason == "tool_use":
+                    # Process tool calls
+                    tool_calls = [block for block in response.content if block.type == "tool_use"]
 
-            # Nemotron doesn't always support the exact same message structure as Claude,
-            # but usually follows OpenAI.
-            response = await self.client.chat.completions.create(
-                model=self.config["ai_logic"]["llm_model"],
-                messages=[{"role": "system", "content": system_prompt}] + messages,
-                tools=openai_tools,
-                tool_choice="auto"
-            )
+                    # Update history with assistant's tool call
+                    messages.append({"role": "assistant", "content": response.content})
 
-            while response.choices[0].message.tool_calls:
-                tool_calls = response.choices[0].message.tool_calls
+                    tool_results = []
+                    for tool_call in tool_calls:
+                        result = await self.execute_tool(tool_call.name, tool_call.input)
+                        # Check quest progress on tool execution
+                        quest_updates.extend(self.quest.check_progress(json.dumps(tool_call.input), tool_executed=tool_call.name))
 
-                # Normalize assistant message
-                assistant_msg = {
-                    "role": "assistant",
-                    "content": response.choices[0].message.content,
-                    "tool_calls": [
-                        {
-                            "id": tc.id,
-                            "type": "function",
-                            "function": {
-                                "name": tc.function.name,
-                                "arguments": tc.function.arguments
-                            }
-                        } for tc in tool_calls
-                    ]
-                }
-                messages.append(assistant_msg)
+                        tool_results.append({
+                            "type": "tool_result",
+                            "tool_use_id": tool_call.id,
+                            "content": json.dumps(result)
+                        })
+                        # Yield a notification to the UI about the tool being used
+                        yield f"[System: Executing {tool_call.name}...]"
 
-                for tool_call in tool_calls:
-                    result = await self.execute_tool(tool_call.function.name, json.loads(tool_call.function.arguments))
-                    messages.append({
-                        "role": "tool",
-                        "tool_call_id": tool_call.id,
-                        "name": tool_call.function.name,
-                        "content": json.dumps(result)
+                    # Update history with tool results
+                    messages.append({"role": "user", "content": tool_results})
+
+                    # Get next response from Claude
+                    response = await self.client.messages.create(
+                        model=self.config["ai_logic"]["llm_model"],
+                        max_tokens=self.config["ai_logic"]["max_tokens"],
+                        temperature=self.config["ai_logic"]["temperature"],
+                        system=system_prompt,
+                        messages=messages,
+                        tools=self.tools
+                    )
+
+                # Final text response
+                for block in response.content:
+                    if block.type == "text":
+                        final_text += block.text
+                        yield block.text
+            else:
+                # OpenAI / Nemotron path
+                # Convert tools to OpenAI format
+                openai_tools = []
+                for t in self.tools:
+                    openai_tools.append({
+                        "type": "function",
+                        "function": {
+                            "name": t["name"],
+                            "description": t["description"],
+                            "parameters": t["input_schema"]
+                        }
                     })
-                    yield f"[System: Executing {tool_call.function.name}...]"
 
+                # Nemotron doesn't always support the exact same message structure as Claude,
+                # but usually follows OpenAI.
                 response = await self.client.chat.completions.create(
                     model=self.config["ai_logic"]["llm_model"],
                     messages=[{"role": "system", "content": system_prompt}] + messages,
-                    tools=openai_tools
+                    tools=openai_tools,
+                    tool_choice="auto"
                 )
 
-            final_text = response.choices[0].message.content
-            if final_text:
-                yield final_text
+                while response.choices[0].message.tool_calls:
+                    tool_calls = response.choices[0].message.tool_calls
+
+                    # Normalize assistant message
+                    assistant_msg = {
+                        "role": "assistant",
+                        "content": response.choices[0].message.content,
+                        "tool_calls": [
+                            {
+                                "id": tc.id,
+                                "type": "function",
+                                "function": {
+                                    "name": tc.function.name,
+                                    "arguments": tc.function.arguments
+                                }
+                            } for tc in tool_calls
+                        ]
+                    }
+                    messages.append(assistant_msg)
+
+                    for tool_call in tool_calls:
+                        result = await self.execute_tool(tool_call.function.name, json.loads(tool_call.function.arguments))
+                        messages.append({
+                            "role": "tool",
+                            "tool_call_id": tool_call.id,
+                            "name": tool_call.function.name,
+                            "content": json.dumps(result)
+                        })
+                        yield f"[System: Executing {tool_call.function.name}...]"
+
+                    response = await self.client.chat.completions.create(
+                        model=self.config["ai_logic"]["llm_model"],
+                        messages=[{"role": "system", "content": system_prompt}] + messages,
+                        tools=openai_tools
+                    )
+
+                final_text = response.choices[0].message.content or ""
+                if final_text:
+                    yield final_text
+        except Exception as e:
+            # Brain unreachable or API error: respond in-character instead of
+            # failing silently, so the user always hears *something*.
+            print(f"[Brain Error] {self.provider}: {e}")
+            fallback = self._connection_error_message(e)
+            self.memory.add_episodic("assistant", fallback)
+            yield fallback
+            return
 
         if final_text:
             self.memory.add_episodic("assistant", final_text)
@@ -405,3 +414,41 @@ class FridayBrain:
         elif name == "run_tests":
             return self.bridge.run_tests(input_data.get("pattern", "tests/"))
         return "Unknown tool"
+
+    def _connection_error_message(self, error):
+        """An in-character message for when the language core is unreachable."""
+        if self.provider == "ollama":
+            hint = ("my local Ollama brain isn't responding. Start it with "
+                    "'ollama serve' and make sure the model is pulled")
+        elif self.provider == "anthropic":
+            hint = "my Anthropic uplink is down. Do check that ANTHROPIC_API_KEY is set"
+        else:
+            hint = "my language core is unreachable"
+        return f"My apologies, Sir — {hint}. I'll be quite useless until then."
+
+    async def health_check(self):
+        """Lightweight reachability probe for the configured provider."""
+        info = {
+            "provider": self.provider,
+            "model": self.config["ai_logic"].get("llm_model"),
+            "reachable": False,
+            "detail": "",
+        }
+        try:
+            if self.provider == "anthropic":
+                has_key = bool(os.getenv("ANTHROPIC_API_KEY"))
+                info["reachable"] = has_key
+                info["detail"] = "API key present" if has_key else "ANTHROPIC_API_KEY not set"
+            else:
+                import httpx
+                base = (self.config["ai_logic"].get("base_url") or "").rstrip("/")
+                if not base:
+                    info["detail"] = "no base_url configured"
+                    return info
+                async with httpx.AsyncClient(timeout=3) as client:
+                    resp = await client.get(f"{base}/models")
+                    info["reachable"] = resp.status_code < 500
+                    info["detail"] = f"HTTP {resp.status_code}"
+        except Exception as e:
+            info["detail"] = str(e)
+        return info

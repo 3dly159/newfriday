@@ -1,11 +1,33 @@
 import asyncio
 import json
+import re
 import logging
 from datetime import datetime
 from core.brain import FridayBrain
 from core.bridge import FridayBridge
 
 logger = logging.getLogger("Friday.Proactive")
+
+
+def extract_json(text):
+    """Best-effort extraction of a JSON object from an LLM response that may be
+    wrapped in markdown fences or surrounded by prose. Returns a dict or None."""
+    if not text:
+        return None
+    fence = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
+    if fence:
+        candidate = fence.group(1)
+    else:
+        start = text.find("{")
+        end = text.rfind("}")
+        if start == -1 or end == -1 or end <= start:
+            return None
+        candidate = text[start:end + 1]
+    try:
+        parsed = json.loads(candidate)
+        return parsed if isinstance(parsed, dict) else None
+    except (json.JSONDecodeError, ValueError):
+        return None
 
 class ProactiveEngine:
     """The 'Subconscious' of Friday. Periodically evaluates system state and chooses to act or speak."""
@@ -95,21 +117,30 @@ class ProactiveEngine:
                 )
                 text = response.choices[0].message.content
 
-            decision_data = json.loads(text)
-            logger.info(f"Proactive Thought: {decision_data['thought']}")
+            decision_data = extract_json(text)
+            if not decision_data or "decision" not in decision_data:
+                logger.info("Proactive cycle: no actionable decision parsed; staying silent.")
+                return
+
+            thought = decision_data.get("thought", "")
+            logger.info(f"Proactive Thought: {thought}")
 
             # Store thought in memory (Script layer or a new 'thought' layer)
             self.brain.memory.layers.setdefault("internal_monologue", []).append({
                 "timestamp": datetime.now().isoformat(),
-                "thought": decision_data["thought"]
+                "thought": thought
             })
 
             # 3. Output (Action or Speech)
-            if decision_data["decision"] == "SPEAK":
+            decision = decision_data.get("decision", "SILENCE")
+            if decision == "SPEAK" and decision_data.get("payload"):
                 await self.broadcast_callback(decision_data["payload"])
-            elif decision_data["decision"] == "ACT":
-                tool_name = decision_data["payload"]
+            elif decision == "ACT":
+                tool_name = decision_data.get("payload")
                 tool_input = decision_data.get("tool_input", {})
+                if not tool_name:
+                    logger.info("Proactive ACT decision had no tool payload; skipping.")
+                    return
                 result = await self.brain.execute_tool(tool_name, tool_input)
                 logger.info(f"Proactive Action executed: {tool_name}. Result: {result}")
 
