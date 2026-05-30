@@ -22,6 +22,11 @@ def test_repair_garbage_returns_none():
     assert repair_json(None) is None
 
 
+def test_repair_fenced_nested_json():
+    text = '```json\n{"a": {"b": 1}}\n```'
+    assert repair_json(text) == {"a": {"b": 1}}
+
+
 from core.structured import validate_tool_args
 
 _SCHEMA = [

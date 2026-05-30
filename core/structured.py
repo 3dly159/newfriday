@@ -7,7 +7,7 @@ def repair_json(text):
     wrapped in markdown fences or surrounded by prose. Returns dict or None."""
     if not text:
         return None
-    fence = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
+    fence = re.search(r"```(?:json)?\s*(\{.*\})\s*```", text, re.DOTALL)
     if fence:
         candidate = fence.group(1)
     else:
