@@ -1,33 +1,17 @@
 import asyncio
 import json
-import re
 import logging
 from datetime import datetime
 from core.brain import FridayBrain
 from core.bridge import FridayBridge
+from core.structured import repair_json
 
 logger = logging.getLogger("Friday.Proactive")
 
 
 def extract_json(text):
-    """Best-effort extraction of a JSON object from an LLM response that may be
-    wrapped in markdown fences or surrounded by prose. Returns a dict or None."""
-    if not text:
-        return None
-    fence = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
-    if fence:
-        candidate = fence.group(1)
-    else:
-        start = text.find("{")
-        end = text.rfind("}")
-        if start == -1 or end == -1 or end <= start:
-            return None
-        candidate = text[start:end + 1]
-    try:
-        parsed = json.loads(candidate)
-        return parsed if isinstance(parsed, dict) else None
-    except (json.JSONDecodeError, ValueError):
-        return None
+    """Backwards-compatible alias; delegates to structured.repair_json."""
+    return repair_json(text)
 
 class ProactiveEngine:
     """The 'Subconscious' of Friday. Periodically evaluates system state and chooses to act or speak."""
