@@ -3,105 +3,60 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Friday AI</title>
+    <title>FRIDAY</title>
     <link rel="stylesheet" href="ui/css/style.css">
     <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.174.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.174.0/examples/jsm/"
-            }
-        }
+    { "imports": {
+        "three": "https://unpkg.com/three@0.174.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.174.0/examples/jsm/"
+    }}
     </script>
 </head>
-<body>
+<body data-state="idle">
     <canvas id="orb-canvas"></canvas>
-    <div id="neural-map-container" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; display: none;"></div>
+
     <div id="ui-layer">
         <header class="glass-panel main-header">
-            <div class="wordmark">Friday<span class="dot"></span></div>
+            <div class="wordmark">FRIDAY<span class="dot"></span></div>
             <div class="header-actions">
-                <button class="icon-btn" id="neural-map-btn" title="Neural Map">🧠</button>
-                <button class="icon-btn" id="alerts-btn" title="Alerts">🔔<span class="badge"></span></button>
-                <button class="icon-btn" id="settings-btn" title="Settings">⚙️</button>
+                <span class="state-label" id="state-label">STANDBY</span>
+                <button class="icon-btn" id="settings-btn" title="Settings">&#9881;</button>
                 <div class="status-dot" id="status-dot"></div>
             </div>
         </header>
 
-        <aside class="glass-panel activity-panel collapsed" id="activity-panel">
-            <button class="panel-toggle" id="panel-toggle">◀</button>
-            <div class="panel-content">
-                <section>
-                    <header>INBOX <span class="count">0</span></header>
-                    <div class="entries" id="inbox-entries"></div>
-                </section>
-                <section>
-                    <header>SCOUT TASKS <span class="count">0</span></header>
-                    <div class="entries" id="scout-entries"></div>
-                </section>
-                <section>
-                    <header>FLUX TASKS <span class="count">0</span></header>
-                    <div class="entries" id="flux-entries"></div>
-                </section>
-                <section>
-                    <header>MAIN TASKS <span class="count" id="task-count">0</span></header>
-                    <div class="entries" id="task-list">
-                        <!-- Tasks injected here -->
-                    </div>
-                </section>
-                <section>
-                    <header>RELAY DRAFTS <span class="count">0</span></header>
-                    <div class="entries" id="relay-entries"></div>
-                </section>
+        <div id="caption-stage"><div id="caption-line"></div></div>
 
-                <section class="vitals-section">
-                    <header>SUIT INTEGRITY</header>
-                    <div class="vital-item">
-                        <span>CPU</span>
-                        <div class="vital-track"><div id="cpu-bar" class="vital-fill" style="width: 0%"></div></div>
-                    </div>
-                    <div class="vital-item">
-                        <span>RAM</span>
-                        <div class="vital-track"><div id="ram-bar" class="vital-fill" style="width: 0%"></div></div>
-                    </div>
-                </section>
-            </div>
+        <div id="action-rail"></div>
+
+        <aside class="glass-panel convo-panel" id="convo-panel">
+            <header class="convo-head">CONVERSATION</header>
+            <div class="convo-scroll" id="convo-scroll"></div>
         </aside>
 
-        <div id="response-cards-container"></div>
-
-        <div class="bottom-bar">
-            <div class="mic-container">
-                <button class="mic-btn" id="mic-trigger">
-                    <svg class="mic-icon" viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.34 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
-                    <svg class="stop-icon" viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
-                </button>
-                <div class="hint-text">TAP OR "HEY FRIDAY"</div>
-            </div>
+        <div class="command-bar">
+            <button class="mic-btn" id="mic-trigger" title="Talk">
+                <svg class="mic-icon" viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.34 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+                <svg class="stop-icon" viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
+            </button>
+            <input id="text-input" type="text" placeholder="Talk, or type to Friday&hellip;" autocomplete="off" />
+            <button class="send-btn" id="send-btn" title="Send">&#10148;</button>
         </div>
     </div>
 
-    <!-- Settings Modal -->
     <div id="settings-modal" class="modal hidden">
         <div class="glass-panel modal-content">
             <h2>System Configuration</h2>
-            <div class="settings-grid" id="settings-form">
-                <!-- Dynamically populated -->
-            </div>
-
-            <h2 style="margin-top: 30px;">Security Permissions</h2>
-            <div class="settings-grid" id="permissions-form">
-                <!-- Dynamically populated -->
-            </div>
-
+            <div class="settings-grid" id="settings-form"></div>
+            <h2 style="margin-top:28px">Security Permissions</h2>
+            <div class="settings-grid" id="permissions-form"></div>
             <div class="modal-actions">
-                <button id="save-settings" class="action-btn">APPLY CHANGES</button>
-                <button id="close-settings" class="action-btn secondary">CANCEL</button>
+                <button id="save-settings" class="action-btn">APPLY</button>
+                <button id="close-settings" class="action-btn secondary">CLOSE</button>
             </div>
         </div>
     </div>
 
-    <!-- Permission Approval Toast -->
     <div id="permission-toast" class="toast hidden">
         <div class="glass-panel toast-content">
             <p id="toast-message">Permission Request</p>
@@ -111,57 +66,34 @@
             </div>
         </div>
     </div>
+
     <script id="nebula-vs" type="x-shader/x-vertex">
         varying vec2 vUv;
-        void main() {
-            vUv = uv;
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
+        void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }
     </script>
     <script id="nebula-fs" type="x-shader/x-fragment">
-        uniform float uTime;
-        uniform vec3 uColor1;
-        uniform vec3 uColor2;
-        varying vec2 vUv;
-
-        // Simplex 2D noise
-        vec3 permute(vec3 x) { return mod(((x*34.0)+1.0)*x, 289.0); }
-        float snoise(vec2 v) {
-            const vec4 C = vec4(0.211324865405187, 0.366025403784439,
-                        -0.577350269189626, 0.024390243902439);
-            vec2 i  = floor(v + dot(v, C.yy) );
-            vec2 x0 = v -   i + dot(i, C.xx);
-            vec2 i1;
-            i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
-            vec4 x12 = x0.xyxy + C.xxzz;
-            x12.xy -= i1;
-            i = mod(i, 289.0);
-            vec3 p = permute( permute( i.y + vec3(0.0, i1.y, 1.0 ))
-                + i.x + vec3(0.0, i1.x, 1.0 ));
-            vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy),
-                dot(x12.zw,x12.zw)), 0.0);
-            m = m*m ;
-            m = m*m ;
-            vec3 x = 2.0 * fract(p * C.www) - 1.0;
-            vec3 h = abs(x) - 0.5;
-            vec3 ox = floor(x + 0.5);
-            vec3 a0 = x - ox;
-            m *= 1.79284291400159 - 0.85373472095314 * ( a0*a0 + h*h );
-            vec3 g;
-            g.x  = a0.x  * x0.x  + h.x  * x0.y;
-            g.yz = a0.yz * x12.xz + h.yz * x12.yw;
-            return 130.0 * dot(m, g);
+        uniform float uTime; uniform vec3 uColor1; uniform vec3 uColor2; varying vec2 vUv;
+        vec3 permute(vec3 x){ return mod(((x*34.0)+1.0)*x, 289.0); }
+        float snoise(vec2 v){
+            const vec4 C = vec4(0.211324865405187,0.366025403784439,-0.577350269189626,0.024390243902439);
+            vec2 i=floor(v+dot(v,C.yy)); vec2 x0=v-i+dot(i,C.xx); vec2 i1;
+            i1=(x0.x>x0.y)?vec2(1.0,0.0):vec2(0.0,1.0); vec4 x12=x0.xyxy+C.xxzz; x12.xy-=i1;
+            i=mod(i,289.0); vec3 p=permute(permute(i.y+vec3(0.0,i1.y,1.0))+i.x+vec3(0.0,i1.x,1.0));
+            vec3 m=max(0.5-vec3(dot(x0,x0),dot(x12.xy,x12.xy),dot(x12.zw,x12.zw)),0.0); m=m*m; m=m*m;
+            vec3 x=2.0*fract(p*C.www)-1.0; vec3 h=abs(x)-0.5; vec3 ox=floor(x+0.5); vec3 a0=x-ox;
+            m*=1.79284291400159-0.85373472095314*(a0*a0+h*h);
+            vec3 g; g.x=a0.x*x0.x+h.x*x0.y; g.yz=a0.yz*x12.xz+h.yz*x12.yw; return 130.0*dot(m,g);
         }
-
-        void main() {
-            float n = snoise(vUv * 3.0 + uTime * 0.1);
-            n += 0.5 * snoise(vUv * 6.0 - uTime * 0.05);
-            float mask = smoothstep(0.2, 0.8, n);
-            vec3 color = mix(uColor1, uColor2, mask);
-            gl_FragColor = vec4(color, mask * 0.3);
+        void main(){
+            float n=snoise(vUv*3.0+uTime*0.1); n+=0.5*snoise(vUv*6.0-uTime*0.05);
+            float mask=smoothstep(0.2,0.8,n); vec3 color=mix(uColor1,uColor2,mask);
+            gl_FragColor=vec4(color, mask*0.3);
         }
     </script>
     <script type="module" src="ui/js/orb.js"></script>
+    <script type="module" src="ui/js/conversation.js"></script>
+    <script type="module" src="ui/js/captions.js"></script>
+    <script type="module" src="ui/js/hud.js"></script>
     <script type="module" src="ui/js/app.js"></script>
 </body>
 </html>
