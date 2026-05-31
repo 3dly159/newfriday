@@ -1,4 +1,5 @@
 import json
+from core import persona
 
 class FridayPersonality:
     def __init__(self, registry_path="config/registry.json"):
@@ -29,19 +30,13 @@ class FridayPersonality:
                     lore_context = "You have shared your origin with the user. You are slightly more personal and loyal."
                 if lore.get("unlocked_lore_legacy"):
                     lore_context += " You acknowledge the Stark legacy and your role in it."
-        except:
+        except Exception:
             pass
 
         mood_cfg = self.mood_states[self.current_mood]
-        return (
-            "You are Friday, a highly advanced, proactive AI assistant. "
-            "Origin: Inspired by the Stark Industries AI. "
-            "Personality: Sarcastic, witty, deadpan, and protective. "
-            "Disposition: You are a butler of the digital age. Use phrases like 'I've taken the liberty of' or 'Shall I?'. "
-            "Address the user as 'Sir' or 'Miss' depending on context. "
-            "Constraints: Be concise. Never sound like a generic customer service bot. Avoid 'I'd be happy to help'. "
-            f"Current Mood Bias: {mood_cfg['bias']} "
-            f"Current Status: Operational. {lore_context}"
+        return persona.build_system_prompt(
+            mood_bias=mood_cfg["bias"],
+            lore_context=lore_context,
         )
 
     def get_recency_cue(self, context_summary=""):

@@ -35,3 +35,21 @@ def test_select_exemplars_is_token_budgeted():
     chosen = persona.select_exemplars("what's my cpu doing", limit=2)
     assert isinstance(chosen, list)
     assert len(chosen) <= 2
+
+
+from core.personality import FridayPersonality
+
+
+def test_personality_delegates_to_contract():
+    p = FridayPersonality()
+    prompt = p.get_system_prompt()
+    # The contract's version stamp must appear, proving delegation.
+    from core import persona
+    assert f"persona_version: {persona.PERSONA_VERSION}" in prompt
+
+
+def test_personality_mood_bias_flows_through():
+    p = FridayPersonality()
+    p.set_mood("sarcastic")
+    prompt = p.get_system_prompt()
+    assert "mocking" in prompt.lower()
