@@ -9,6 +9,7 @@ from core.agents import LegionBroker
 from core.quest import QuestEngine
 from core.skills import ClawhubManager
 from core.dataset import DatasetCapturer
+from core.structured import repair_json, validate_tool_args
 from core import persona
 
 class FridayBrain:
@@ -349,7 +350,26 @@ class FridayBrain:
                     messages.append(assistant_msg)
 
                     for tool_call in tool_calls:
-                        result = await self.execute_tool(tool_call.function.name, json.loads(tool_call.function.arguments))
+                        raw_args = tool_call.function.arguments
+                        parsed_args = repair_json(raw_args)
+                        if parsed_args is None:
+                            try:
+                                parsed_args = json.loads(raw_args)
+                            except (json.JSONDecodeError, ValueError, TypeError):
+                                parsed_args = {}
+
+                        ok, err = validate_tool_args(
+                            tool_call.function.name, parsed_args, self.tools
+                        )
+                        if not ok:
+                            # Hand the model its own mistake so it can self-correct
+                            # on the next turn, instead of executing garbage.
+                            result = {"error": f"Invalid tool call: {err}"}
+                        else:
+                            result = await self.execute_tool(
+                                tool_call.function.name, parsed_args
+                            )
+
                         messages.append({
                             "role": "tool",
                             "tool_call_id": tool_call.id,
