@@ -17,7 +17,7 @@ function connect() {
     socket.binaryType = 'arraybuffer';
     socket.onmessage = async (e) => {
         if (typeof e.data === 'string') return handleEvent(JSON.parse(e.data));
-        if (pendingCaption) {
+        if (pendingCaption && e.data) {
             audioQueue.push({ buffer: e.data, ...pendingCaption });
             pendingCaption = null;
             if (!isPlaying) pump();
@@ -53,7 +53,11 @@ async function pump() {
 }
 
 async function playSegment(seg) {
+    if (!seg || !seg.buffer) return;
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    // Browsers suspend the AudioContext until a user gesture; resume so the
+    // first reply after a click/keypress actually plays.
+    if (audioCtx.state === 'suspended') { try { await audioCtx.resume(); } catch (e) {} }
     const buf = await audioCtx.decodeAudioData(seg.buffer.slice(0));
     const src = audioCtx.createBufferSource();
     const analyser = audioCtx.createAnalyser();

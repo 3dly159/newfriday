@@ -39,6 +39,10 @@ class VoiceSession:
         await self._emit(events.mood_event(mood, color))
 
     async def _synth_segment(self, text):
+        # Skip segments with nothing speakable (whitespace/punctuation only).
+        # Edge-TTS produces no audio for these and raises, dropping the segment.
+        if not any(c.isalnum() for c in text):
+            return
         os.makedirs(self.logs_dir, exist_ok=True)
         seg_id = uuid.uuid4().hex
         out = os.path.join(self.logs_dir, f"resp_{seg_id}.mp3")

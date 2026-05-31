@@ -1,4 +1,4 @@
-import pytest
+import asyncio
 from core.voice_session import is_sentence_end, VoiceSession
 
 
@@ -32,8 +32,10 @@ class _FakeTTS:
         return output_path, [{"word": text.strip().split(" ")[0], "offset_ms": 0, "duration_ms": 100}]
 
 
-@pytest.mark.asyncio
-async def test_run_turn_emits_contract_events(tmp_path):
+# These tests drive the coroutine with asyncio.run() directly so they need no
+# pytest async plugin (pytest-asyncio is unreliable in this environment).
+
+def test_run_turn_emits_contract_events(tmp_path):
     sent_json = []
     sent_bytes = []
     session = VoiceSession(
@@ -42,7 +44,7 @@ async def test_run_turn_emits_contract_events(tmp_path):
         send_bytes=lambda b: sent_bytes.append(b),
         logs_dir=str(tmp_path),
     )
-    await session.run_turn("status report")
+    asyncio.run(session.run_turn("status report"))
 
     types = [m["type"] for m in sent_json]
     assert "transcript" in types
@@ -56,13 +58,31 @@ async def test_run_turn_emits_contract_events(tmp_path):
     assert n_caps >= 1
 
 
-@pytest.mark.asyncio
-async def test_run_turn_user_transcript_first(tmp_path):
+def test_run_turn_user_transcript_first(tmp_path):
     sent = []
     session = VoiceSession(
         brain=_FakeBrain(), stt=None, tts=_FakeTTS(),
         send_json=lambda m: sent.append(m), send_bytes=lambda b: None,
         logs_dir=str(tmp_path),
     )
-    await session.run_turn("hello")
+    asyncio.run(session.run_turn("hello"))
     assert sent[0] == {"type": "transcript", "role": "user", "text": "hello", "final": True}
+
+
+class _ExplodingTTS:
+    """Fails if asked to synthesize — proves non-speakable segments are skipped."""
+    async def generate_speech_timed(self, text, output_path):
+        raise AssertionError(f"should not synthesize non-speakable text: {text!r}")
+
+
+def test_synth_skips_non_speakable_segment(tmp_path):
+    sent = []
+    session = VoiceSession(
+        brain=_FakeBrain(), stt=None, tts=_ExplodingTTS(),
+        send_json=lambda m: sent.append(m), send_bytes=lambda b: None,
+        logs_dir=str(tmp_path),
+    )
+    # Whitespace/punctuation-only segments must be skipped: TTS is never called
+    # (else _ExplodingTTS raises) and no caption is emitted.
+    asyncio.run(session._synth_segment("   ...  \n"))
+    assert sent == []
