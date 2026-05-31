@@ -14,9 +14,11 @@ class _FakeBrain:
     class _Pers:
         current_mood = "neutral"
         mood_states = {"neutral": {"orb_color": "#5cc8ff"}}
+
     def __init__(self):
         self.personality = self._Pers()
         self.config = {"ai_logic": {"llm_model": "test"}}
+
     async def get_streaming_response(self, text):
         for tok in ["Good ", "evening, Sir. ", "[System: Executing get_system_vitals...]",
                     "All ", "systems nominal."]:
