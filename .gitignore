@@ -13,6 +13,7 @@ dist/
 data/logs/*.jsonl
 data/vector_db/
 data/discoveries/*.bak
+data/dataset/
 *.bak
 server.log
 
@@ -30,3 +31,6 @@ config/api_keys.json
 
 # Brainstorm companion (visual mockups)
 .superpowers/
+
+# Playwright MCP screenshots (local verification artifacts)
+.playwright-mcp/
