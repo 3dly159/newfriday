@@ -20,6 +20,7 @@
     },
     "system": {
         "proactive_interval": 20,
-        "auto_approve_hid": "false"
+        "auto_approve_hid": "false",
+        "capture_dataset": false
     }
 }
