@@ -8,6 +8,8 @@ from core.memory import FridayMemory
 from core.agents import LegionBroker
 from core.quest import QuestEngine
 from core.skills import ClawhubManager
+from core.dataset import DatasetCapturer
+from core import persona
 
 class FridayBrain:
     def __init__(self):
@@ -36,6 +38,12 @@ class FridayBrain:
         self.legion = LegionBroker(self)
         self.quest = QuestEngine(self.memory)
         self.skills = ClawhubManager(self.memory)
+
+        capture_enabled = self.config.get("system", {}).get("capture_dataset", False)
+        self.capturer = DatasetCapturer(
+            enabled=capture_enabled,
+            persona_version=persona.PERSONA_VERSION,
+        )
 
         # Tools definition for Claude 3.5 Sonnet
         self.tools = [
@@ -232,6 +240,11 @@ class FridayBrain:
         quest_updates = self.quest.check_progress(user_input)
 
         system_prompt = self.personality.get_system_prompt()
+        exemplar_block = persona.format_exemplars(
+            persona.select_exemplars(user_input, limit=3)
+        )
+        if exemplar_block:
+            system_prompt += "\n\n" + exemplar_block
         system_prompt += "\n\n" + self.skills.get_installed_skills_prompt()
         system_prompt += "\n\n" + self.memory.get_context_string(current_query=user_input)
 
@@ -365,6 +378,12 @@ class FridayBrain:
 
         if final_text:
             self.memory.add_episodic("assistant", final_text)
+            self.capturer.capture(
+                system=system_prompt,
+                user=user_input,
+                reply=final_text,
+                model=self.config["ai_logic"].get("llm_model", "unknown"),
+            )
 
     async def execute_tool(self, name: str, input_data: dict):
         if name == "create_task":
