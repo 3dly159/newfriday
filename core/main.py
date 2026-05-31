@@ -11,6 +11,7 @@ from core.brain import FridayBrain
 from core.stt import FridaySTT
 from core.tts import FridayTTS
 from core.proactive import ProactiveEngine
+from core.voice_session import VoiceSession
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -126,47 +127,21 @@ async def update_permissions(perms: dict):
     bridge.permissions.save()
     return {"status": "success"}
 
-def is_sentence_end(text):
-    return text.strip().endswith(('.', '?', '!'))
-
-async def process_and_send_segment(websocket, text, is_final):
-    output_path = f"data/logs/resp_{uuid.uuid4().hex}.mp3"
-    try:
-        await tts.generate_speech(text, output_path)
-
-        with open(output_path, "rb") as f:
-            audio_bytes = f.read()
-
-        await websocket.send_json({
-            "type": "speak_segment",
-            "text": text,
-            "is_final": is_final
-        })
-        await websocket.send_bytes(audio_bytes)
-    except Exception as e:
-        logger.error(f"TTS Error: {e}")
-        # Still send text so user can read it even if audio fails
-        await websocket.send_json({
-            "type": "speak_segment",
-            "text": text,
-            "is_final": is_final,
-            "error": "TTS_FAILED"
-        })
-    finally:
-        if os.path.exists(output_path):
-            os.remove(output_path)
-
 @app.websocket("/ws/voice")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     active_connections.append(websocket)
+    session = VoiceSession(
+        brain=brain, stt=stt, tts=tts,
+        send_json=websocket.send_json, send_bytes=websocket.send_bytes,
+    )
     try:
         while True:
             message = await websocket.receive()
             if message.get("type") == "websocket.disconnect":
                 break
 
-            # Control messages (e.g. barge-in interrupt) arrive as text frames.
+            # Text / control frames (JSON).
             if message.get("text") is not None:
                 try:
                     ctrl = json.loads(message["text"])
@@ -174,17 +149,25 @@ async def websocket_endpoint(websocket: WebSocket):
                     continue
                 if ctrl.get("type") == "interrupt":
                     print("[BARGE-IN] User interrupted Friday.")
+                    continue
+                if ctrl.get("type") == "text" and ctrl.get("content", "").strip():
+                    user_text = ctrl["content"].strip()
+                    print(f"[USER/text] {user_text}")
+                    unlocked = brain.memory.add_episodic("user", user_text)
+                    if unlocked:
+                        await websocket.send_json({"type": "arg_unlocked", "flags": unlocked})
+                    await session.run_turn(user_text)
                 continue
 
             data = message.get("bytes")
             if not data:
                 continue
 
-            # The browser sends WebM/Opus data usually. Faster-Whisper can often handle it if extension is correct or via ffmpeg
+            # Audio frame -> STT. The browser sends WebM/Opus.
             temp_filename = f"data/logs/chunk_{uuid.uuid4().hex}.webm"
+            os.makedirs("data/logs", exist_ok=True)
             with open(temp_filename, "wb") as f:
                 f.write(data)
-
             try:
                 transcription = stt.transcribe(temp_filename)
             except Exception as e:
@@ -195,66 +178,22 @@ async def websocket_endpoint(websocket: WebSocket):
 
             if not transcription:
                 continue
-
-            # Log transcription
             print(f"\n[TRANSCRIPTION] {transcription}")
 
-            # Check interaction mode from registry
             mode = brain.config.get("speech", {}).get("interaction_mode", "wake_word")
-
-            # Wake Word / Direct Address Check
-            # Requirement: "listen all the time interact only if words are addressed to it"
             is_addressed = any(kw in transcription.lower() for kw in ["friday", "hey friday", "computer"])
-
-            # Contextual greeting exception (always allow responses to simple greetings)
             is_greeting = any(transcription.lower().strip() == g for g in ["hello", "good morning", "good evening", "hi friday"])
 
             if mode == "wake_word" and not is_addressed and not is_greeting:
-                # Still record to episodic memory for "background awareness" but don't respond
                 print(f"[BACKGROUND] Recorded: {transcription}")
                 brain.memory.add_episodic("background", transcription)
                 continue
 
             print(f"[USER] {transcription}")
-
-            # Update Memory & Check ARG triggers
             unlocked = brain.memory.add_episodic("user", transcription)
             if unlocked:
                 await websocket.send_json({"type": "arg_unlocked", "flags": unlocked})
-
-            await websocket.send_json({"type": "status", "state": "processing"})
-
-            # Streaming Pipelining (Hold-One-Ahead)
-            held_sentence = None
-            current_buffer = ""
-
-            full_reply = ""
-            print("[FRIDAY] ", end="", flush=True)
-            async for token in brain.get_streaming_response(transcription):
-                full_reply += token
-                print(token, end="", flush=True)
-
-                # Filter out system notifications from the TTS pipeline
-                if token.startswith("[System:"):
-                    await websocket.send_json({
-                        "type": "status",
-                        "state": "processing",
-                        "notification": token
-                    })
-                    continue
-
-                current_buffer += token
-                if is_sentence_end(current_buffer):
-                    if held_sentence:
-                        await process_and_send_segment(websocket, held_sentence, is_final=False)
-                    held_sentence = current_buffer
-                    current_buffer = ""
-
-            # Flush the final held sentence
-            final_text = (held_sentence or "") + current_buffer
-            if final_text.strip():
-                await process_and_send_segment(websocket, final_text, is_final=True)
-            print() # End Friday line
+            await session.run_turn(transcription)
 
     except WebSocketDisconnect:
         print("Client disconnected")
