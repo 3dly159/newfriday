@@ -3,6 +3,23 @@ import edge_tts
 import json
 import os
 
+TICKS_PER_MS = 10000  # Edge-TTS reports offset/duration in 100-nanosecond ticks
+
+
+def boundary_to_word(chunk):
+    """Convert one Edge-TTS WordBoundary chunk to our word-timing dict."""
+    return {
+        "word": chunk["text"],
+        "offset_ms": chunk["offset"] // TICKS_PER_MS,
+        "duration_ms": chunk["duration"] // TICKS_PER_MS,
+    }
+
+
+def words_from_chunks(chunks):
+    """Filter an Edge-TTS chunk stream down to word-timing dicts."""
+    return [boundary_to_word(c) for c in chunks if c.get("type") == "WordBoundary"]
+
+
 class FridayTTS:
     def __init__(self, registry_path="config/registry.json"):
         with open(registry_path, "r") as f:
