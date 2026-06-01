@@ -160,7 +160,43 @@ async function updateVitals() {
     try {
         const v = await (await fetch('/api/vitals')).json();
         window.__vitals = v;
+        setBar('tr-cpu', v.cpu_usage);
+        setBar('tr-ram', v.memory_usage);
+        setBar('tr-batt', v.battery, true);
+        const cfg = await (await fetch('/api/config')).json();
+        renderTasks((cfg.system_memory && cfg.system_memory.task) || []);
     } catch (e) { /* ignore */ }
+}
+
+function setBar(id, pct, isBattery) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const p = Math.max(0, Math.min(100, Number(pct) || 0));
+    el.style.width = p + '%';
+    el.classList.remove('warn', 'crit');
+    // Battery is inverted: low is bad. Others: high is bad.
+    const bad = isBattery ? (p < 20 ? 'crit' : p < 40 ? 'warn' : '') : (p > 90 ? 'crit' : p > 70 ? 'warn' : '');
+    if (bad) el.classList.add(bad);
+}
+
+function renderTasks(tasks) {
+    const host = document.getElementById('tr-tasks');
+    if (!host) return;
+    if (!tasks.length) { host.innerHTML = '<span style="opacity:.4">none</span>'; return; }
+    host.innerHTML = tasks.slice(0, 6).map(t =>
+        `<div class="t">${(t.name || t.title || 'task').replace(/[<>&]/g, '')}</div>`).join('');
+}
+
+function result(msg) {
+    const host = document.getElementById('result-cards');
+    if (!host) return;
+    const card = document.createElement('div');
+    card.className = 'result-card';
+    card.innerHTML = `<div class="rc-title">${(msg.title || '').replace(/[<>&]/g, '')}</div>` +
+        (msg.lines || []).slice(0, 5).map(l => `<div class="rc-line">${String(l).replace(/[<>&]/g, '')}</div>`).join('');
+    host.appendChild(card);
+    requestAnimationFrame(() => card.classList.add('show'));
+    setTimeout(() => { card.classList.remove('show'); setTimeout(() => card.remove(), 400); }, 7000);
 }
 
 function requestApproval(perm) {
@@ -174,4 +210,4 @@ async function setPerm(perm, val) {
     await fetch('/api/permissions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ [perm]: val }) });
 }
 
-window.Hud = { init, action, glitch, setStateLabel, requestApproval };
+window.Hud = { init, action, glitch, setStateLabel, requestApproval, result };

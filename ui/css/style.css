@@ -127,3 +127,26 @@ body[data-state="speaking"] .status-dot{ background:var(--accent); box-shadow:0 
 .glitch-mode{ animation:glitch .3s cubic-bezier(.25,.46,.45,.94) both infinite; }
 @keyframes glitch{ 0%{transform:translate(0)} 20%{transform:translate(-2px,2px)} 40%{transform:translate(-2px,-2px)}
   60%{transform:translate(2px,2px)} 80%{transform:translate(2px,-2px)} 100%{transform:translate(0)} }
+
+/* Cinematic HUD — left telemetry rail */
+.telemetry-rail{ position:fixed; left:18px; top:90px; bottom:150px; width:190px; pointer-events:auto;
+  padding:16px 14px; display:flex; flex-direction:column; gap:20px; overflow-y:auto; }
+.telemetry-rail::-webkit-scrollbar{ width:5px; } .telemetry-rail::-webkit-scrollbar-thumb{ background:var(--border); border-radius:3px; }
+.tr-section > header{ font-size:9px; letter-spacing:.2em; color:var(--accent); margin-bottom:10px; }
+.tr-vital{ font-size:9px; color:var(--text-dim); letter-spacing:.06em; margin-bottom:9px; }
+.tr-vital span{ display:block; margin-bottom:3px; }
+.tr-bar{ height:5px; background:rgba(124,180,255,.12); border-radius:3px; overflow:hidden; }
+.tr-bar i{ display:block; height:100%; width:0%; background:var(--accent); border-radius:3px;
+  box-shadow:0 0 8px var(--accent); transition:width .5s, background .5s; }
+.tr-bar i.warn{ background:#FBBF24; box-shadow:0 0 8px #FBBF24; }
+.tr-bar i.crit{ background:#EF4444; box-shadow:0 0 8px #EF4444; }
+.tr-tasks{ font-size:10px; color:rgba(255,255,255,.6); line-height:1.7; }
+.tr-tasks .t{ display:flex; gap:6px; } .tr-tasks .t::before{ content:'▸'; color:var(--accent); }
+#result-cards{ position:fixed; left:50%; bottom:110px; transform:translateX(-50%); width:380px; max-width:60vw;
+  display:flex; flex-direction:column; gap:8px; pointer-events:none; z-index:11; }
+.result-card{ background:rgba(124,245,213,.06); border:1px solid rgba(124,245,213,.28); border-radius:10px;
+  padding:10px 12px; opacity:0; transform:translateY(10px); transition:opacity .35s, transform .35s; }
+.result-card.show{ opacity:1; transform:translateY(0); }
+.result-card .rc-title{ font-size:9px; letter-spacing:.12em; color:#7cf5d5; margin-bottom:5px; }
+.result-card .rc-line{ font-size:11px; color:rgba(255,255,255,.78); line-height:1.5; white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis; }

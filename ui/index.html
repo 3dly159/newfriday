@@ -16,6 +16,19 @@
     <canvas id="orb-canvas"></canvas>
 
     <div id="ui-layer">
+        <aside class="telemetry-rail glass-panel" id="telemetry-rail">
+            <section class="tr-section">
+                <header>VITALS</header>
+                <div class="tr-vital"><span>CPU</span><div class="tr-bar"><i id="tr-cpu"></i></div></div>
+                <div class="tr-vital"><span>RAM</span><div class="tr-bar"><i id="tr-ram"></i></div></div>
+                <div class="tr-vital"><span>BATT</span><div class="tr-bar"><i id="tr-batt"></i></div></div>
+            </section>
+            <section class="tr-section">
+                <header>TASKS</header>
+                <div id="tr-tasks" class="tr-tasks"></div>
+            </section>
+        </aside>
+        <div id="result-cards"></div>
         <header class="glass-panel main-header">
             <div class="wordmark">FRIDAY<span class="dot"></span></div>
             <div class="header-actions">
