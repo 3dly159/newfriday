@@ -33,11 +33,15 @@ The project uses **FastAPI** with **WebSockets** for real-time bidirectional voi
 - **`core/tts.py`** — Text-to-Speech wrapper using Edge-TTS.
 - **`core/quest.py`** — Quest/ARG (Augmented Reality Game) engine for unlocking narrative content.
 - **`core/agency/`** — Real-world capability tools (web search/fetch, file/clipboard/screenshot, app/volume/media/shell), assembled by `registry.py` (schemas + permission-gated `dispatch`) and called via `brain.execute_tool`. Defaults to allow; catastrophic shell commands (`rm -rf /`, fork bomb, `mkfs`, …) are always refused regardless of permission.
+- **`core/triggers.py`** — Pure proactive trigger scoring. `evaluate_triggers(ctx)` scores vitals/time/tasks/web signals; `core/proactive.py` surfaces a message only above `THRESHOLD` (balanced cadence).
+- **`core/greeting.py`** — Pure greeting composition (`build_greeting`, time/identity/absence aware) + `pick_greeting_mode` (mirrors `ui/js/recognition.js`). Served via `GET /api/greeting`.
 
 ### Frontend (HTML/CSS/JavaScript)
-- **`ui/index.html`** — Main UI page. Establishes WebSocket connection to `/ws/voice`, renders the holographic interface.
-- **`ui/js/`** — Three.js-based 3D orb, real-time waveform visualization, telemetry panels, and interaction handlers.
-- **`ui/css/`** — Glassmorphism styling, theme colors (controllable via `config/registry.json`).
+- **`ui/index.html`** — Main UI page. WebSocket to `/ws/voice`; holographic interface: adaptive orb, left telemetry rail, conversation panel, command bar, boot overlay.
+- **`ui/js/`** — `orb.js` (adaptive wobbly orb), `app.js` (WebSocket/audio/mic/text router), `conversation.js`, `captions.js` (karaoke), `hud.js` (telemetry rail, result cards, action chips, settings sidebar), `boot.js` (cinematic boot overlay), `recognition.js` (webcam face-ID with profile fallback).
+- **`ui/css/`** — Glassmorphism styling. The orb/UI accent is arc-reactor blue; the orb color changes only on mood and resets to blue when idle.
+- **`/ws/voice` event contract (server→UI):** `state | transcript | caption | action | result | mood | approval | arg_unlocked`. UI→server: audio bytes, `{type:text}`, `{type:speak}` (verbatim), `{type:interrupt}`. Proactive messages use this same contract (not the legacy `speak_segment`).
+- **UI assets are served `no-cache`** (`core/main.py` middleware) so edits show on reload — don't rely on cached JS/CSS when verifying.
 
 ### Configuration & Data
 - **`config/registry.json`** — Central configuration. Contains AI model choice, voice profile, proactive interval, theme color, and interaction modes. Generated with defaults on first run.
