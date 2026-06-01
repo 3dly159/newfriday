@@ -77,6 +77,19 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+
+@app.middleware("http")
+async def no_cache_ui(request, call_next):
+    """Serve UI/index assets with no-cache so edits show on reload (the UI is
+    local and iterates often; stale cached JS/CSS caused phantom 'old UI' bugs)."""
+    response = await call_next(request)
+    path = request.url.path
+    if path == "/" or path.startswith("/ui"):
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+    return response
+
+
 @app.get("/")
 async def get_index():
     from fastapi.responses import FileResponse
