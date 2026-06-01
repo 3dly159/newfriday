@@ -143,6 +143,14 @@ async def get_greeting():
     brain.memory.save()
     return {"text": text}
 
+@app.post("/api/presence")
+async def set_presence(payload: dict):
+    """Browser reports whether the recognized user is in front of the camera.
+    Proactivity reads this to stay silent when the user is absent."""
+    from core.presence import set_presence as _set
+    _set(bool(payload.get("present", False)))
+    return {"status": "ok"}
+
 @app.post("/api/config")
 async def update_config(config: dict):
     # Validate against the schema before touching disk, so malformed input

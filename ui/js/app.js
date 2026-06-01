@@ -163,5 +163,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 socket.send(JSON.stringify({ type: 'speak', content: g.text }));
             }
         } catch (e) { /* greeting is best-effort */ }
+        // Begin reporting camera presence so proactivity only speaks when you're here.
+        try { window.Recognition?.startPresenceMonitor(); } catch (e) {}
     });
 });

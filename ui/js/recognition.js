@@ -54,4 +54,48 @@ async function recognize() {
     }
 }
 
-window.Recognition = { recognize, pickGreetingMode };
+async function _reportPresence(present) {
+    try {
+        await fetch('/api/presence', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ present }),
+        });
+    } catch (e) { /* best-effort */ }
+}
+
+// Continuously report whether the ENROLLED user is in front of the camera, so
+// backend proactivity only speaks when you're present. Holds one camera stream
+// open and polls every `intervalMs`. If anything fails (no camera/permission/
+// enrollment), it simply never reports 'present' → backend stays silent (strict).
+async function startPresenceMonitor(intervalMs = 5000) {
+    try {
+        if (!await _loadLib()) return;
+        await faceapi.nets.tinyFaceDetector.loadFromUri(MODELS);
+        await faceapi.nets.faceRecognitionNet.loadFromUri(MODELS);
+        await faceapi.nets.faceLandmark68Net.loadFromUri(MODELS);
+        const enrolled = localStorage.getItem(KEY);
+        if (!enrolled) return; // can't match "you" without enrollment → stay silent
+        const saved = new Float32Array(JSON.parse(enrolled));
+        const { video } = await _camera(); // keep stream open for the session
+
+        const tick = async () => {
+            let present = false;
+            try {
+                const det = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
+                    .withFaceLandmarks().withFaceDescriptor();
+                if (det) {
+                    present = faceapi.euclideanDistance(saved, det.descriptor) < 0.55;
+                }
+            } catch (e) { present = false; }
+            await _reportPresence(present);
+        };
+        await tick();
+        setInterval(tick, intervalMs);
+    } catch (e) {
+        console.log('[recognition] presence monitor unavailable:', e.message);
+        // No reports → backend treats user as absent (strict). Intentional.
+    }
+}
+
+window.Recognition = { recognize, pickGreetingMode, startPresenceMonitor };

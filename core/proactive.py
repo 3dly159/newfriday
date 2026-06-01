@@ -49,7 +49,14 @@ class ProactiveEngine:
         """A single trigger-scan cycle: gather signals, score, and speak only if
         a candidate clears the balanced threshold."""
         from core.triggers import evaluate_triggers, THRESHOLD
+        from core.presence import is_present
         logger.info("Friday proactive scan...")
+
+        # Camera gate: only speak when the user is recognized in front of the
+        # camera. Strict — no fresh presence report means stay silent.
+        if not is_present():
+            logger.info("Proactive scan: user not present at camera; staying silent.")
+            return
 
         try:
             vitals = self.bridge.get_system_vitals()
