@@ -148,8 +148,10 @@ class FridayMemory:
         return f"Task created: {name} (ID: {task_id})"
 
     def update_task(self, task_id, status=None, priority=None):
+        # Some tasks (e.g. quest-derived ones) have no 'id'; use .get so we
+        # never KeyError, just skip non-matching/id-less entries.
         for task in self.layers["task"]:
-            if str(task["id"]) == str(task_id):
+            if str(task.get("id")) == str(task_id):
                 if status: task["status"] = status
                 if priority: task["priority"] = priority
                 self.save()
@@ -158,7 +160,7 @@ class FridayMemory:
 
     def delete_task(self, task_id):
         initial_len = len(self.layers["task"])
-        self.layers["task"] = [t for t in self.layers["task"] if str(t["id"]) != str(task_id)]
+        self.layers["task"] = [t for t in self.layers["task"] if str(t.get("id")) != str(task_id)]
         if len(self.layers["task"]) < initial_len:
             self.save()
             return f"Task {task_id} deleted."
