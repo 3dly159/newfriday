@@ -290,6 +290,11 @@ class FridayBrain:
                         if marker:
                             yield marker
 
+                        from core.voice_session import summarize_result
+                        _card = summarize_result(tool_call.name, result)
+                        if _card:
+                            yield "[Result: " + json.dumps({"tool": tool_call.name, **_card}) + "]"
+
                         tool_results.append({
                             "type": "tool_result",
                             "tool_use_id": tool_call.id,
@@ -388,6 +393,11 @@ class FridayBrain:
                         marker = self._approval_marker(result)
                         if marker:
                             yield marker
+
+                        from core.voice_session import summarize_result
+                        _card = summarize_result(tool_call.function.name, result)
+                        if _card:
+                            yield "[Result: " + json.dumps({"tool": tool_call.function.name, **_card}) + "]"
 
                         messages.append({
                             "role": "tool",

@@ -5,6 +5,12 @@ def test_state_event():
     assert events.state_event("thinking") == {"type": "state", "state": "thinking"}
 
 
+def test_result_event():
+    ev = events.result_event("web_search", "Web · 3 results", ["a", "b", "c"])
+    assert ev == {"type": "result", "tool": "web_search",
+                  "title": "Web · 3 results", "lines": ["a", "b", "c"]}
+
+
 def test_transcript_event():
     assert events.transcript_event("user", "hello", True) == {
         "type": "transcript", "role": "user", "text": "hello", "final": True

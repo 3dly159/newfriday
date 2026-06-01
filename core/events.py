@@ -33,3 +33,8 @@ def mood_event(mood, orb_color):
 def approval_event(category):
     """Friday is asking the user to grant a gated permission (e.g. hid_control)."""
     return {"type": "approval", "category": category}
+
+
+def result_event(tool, title, lines):
+    """A card-worthy agency result for the HUD (rendered bottom-center)."""
+    return {"type": "result", "tool": tool, "title": title, "lines": lines}

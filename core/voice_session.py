@@ -8,6 +8,23 @@ def is_sentence_end(text):
     return text.strip().endswith(('.', '?', '!'))
 
 
+def summarize_result(tool, result):
+    """Decide whether an agency tool result is HUD-card-worthy; return
+    {title, lines} or None. Only data-bearing results (web/files) make cards."""
+    if tool in ("web_search",) and isinstance(result, list) and result:
+        lines = []
+        for r in result[:5]:
+            if isinstance(r, dict) and r.get("title"):
+                lines.append(r["title"])
+        if lines:
+            return {"title": f"Web · {len(result)} results", "lines": lines}
+        return None
+    if tool in ("search_files", "list_dir") and isinstance(result, list) and result:
+        shown = [str(x) for x in result[:6]]
+        return {"title": f"Files · {len(result)} found", "lines": shown}
+    return None
+
+
 class VoiceSession:
     """Owns one conversational turn: input text -> brain stream -> word-timed TTS
     -> ordered contract events. Decoupled from FastAPI via send callables."""
@@ -86,6 +103,17 @@ class VoiceSession:
                 if open_actions:
                     await self._emit(events.action_event(open_actions[-1], "error", "needs approval"))
                 await self._emit(events.approval_event(category))
+                continue
+
+            if token.startswith("[Result:"):
+                import json as _json
+                try:
+                    payload = _json.loads(token[len("[Result:"):].rstrip("]").strip())
+                    await self._emit(events.result_event(payload.get("tool", ""),
+                                                         payload.get("title", ""),
+                                                         payload.get("lines", [])))
+                except (ValueError, KeyError):
+                    pass
                 continue
 
             # Real assistant text from here on.

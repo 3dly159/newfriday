@@ -86,3 +86,29 @@ def test_synth_skips_non_speakable_segment(tmp_path):
     # (else _ExplodingTTS raises) and no caption is emitted.
     asyncio.run(session._synth_segment("   ...  \n"))
     assert sent == []
+
+
+from core.voice_session import summarize_result
+
+
+def test_summarize_web_results():
+    res = [{"title": "Foo", "url": "http://x", "snippet": "bar"},
+           {"title": "Baz", "url": "http://y", "snippet": "qux"}]
+    card = summarize_result("web_search", res)
+    assert card["title"].lower().startswith("web")
+    assert any("Foo" in ln for ln in card["lines"])
+
+
+def test_summarize_file_list():
+    card = summarize_result("search_files", ["a.py", "b.py", "c.py"])
+    assert "file" in card["title"].lower()
+    assert len(card["lines"]) <= 6
+
+
+def test_summarize_non_card_returns_none():
+    assert summarize_result("set_volume", "Volume set to 50%.") is None
+    assert summarize_result("run_shell", {"stdout": "ok", "exit_code": 0}) is None
+
+
+def test_summarize_unknown_tool_returns_none():
+    assert summarize_result("create_task", "Task created") is None
