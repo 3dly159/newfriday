@@ -134,17 +134,17 @@ function init() {
             void main(){
                 float fresnel = pow(1.0 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.2);
                 // Brighter where the surface bulges; darker in the troughs -> inner glow.
-                float energy = 0.55 + vDisp * 1.6;
+                float energy = 0.38 + vDisp * 1.3;
                 float pulse = sin(uTime * 2.0) * 0.08 + 0.92;
                 vec3 col = uColor * energy;
-                float alpha = (fresnel + 0.25) * (uVoiceBright * 1.5 + 0.7) * pulse;
+                float alpha = (fresnel + 0.18) * (uVoiceBright * 1.1 + 0.42) * pulse;
                 gl_FragColor = vec4(col, clamp(alpha, 0.0, 1.0));
             }`,
     });
     orb = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 32), orbMat);
     scene.add(orb);
 
-    bloomPass = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 1.4, 0.5, 0.1);
+    bloomPass = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.65, 0.5, 0.2);
     composer = new EffectComposer(renderer);
     composer.addPass(new RenderPass(scene, camera));
     composer.addPass(bloomPass);
@@ -178,7 +178,7 @@ function animate() {
     // Ease orb color toward its target (smooth mood transitions / reset to blue).
     uniforms.uColor.value.lerp(uniforms.uColorTarget.value, 0.06);
 
-    bloomPass.strength = 1.4 * current.bloom;
+    bloomPass.strength = 0.65 * current.bloom;
     composer.render();
 }
 

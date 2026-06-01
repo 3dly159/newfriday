@@ -7,7 +7,7 @@
         "base_url": "http://localhost:11434/v1"
     },
     "speech": {
-        "tts_voice": "en-GB-AdaMultilingualNeural",
+        "tts_voice": "en-GB-SoniaNeural",
         "speech_rate": "+0%",
         "vad_threshold": 800,
         "whisper_model": "base.en",
@@ -20,7 +20,7 @@
     },
     "system": {
         "proactive_interval": 20,
-        "auto_approve_hid": "false",
-        "capture_dataset": "false"
+        "auto_approve_hid": "true",
+        "capture_dataset": "true"
     }
 }
