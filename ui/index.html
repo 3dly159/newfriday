@@ -13,6 +13,10 @@
     </script>
 </head>
 <body data-state="idle">
+    <div id="boot-overlay">
+        <div class="boot-lines" id="boot-lines"></div>
+        <div class="boot-hint">click to skip</div>
+    </div>
     <canvas id="orb-canvas"></canvas>
 
     <div id="ui-layer">
@@ -109,6 +113,8 @@
     <script type="module" src="ui/js/conversation.js"></script>
     <script type="module" src="ui/js/captions.js"></script>
     <script type="module" src="ui/js/hud.js"></script>
+    <script type="module" src="ui/js/boot.js"></script>
+    <script type="module" src="ui/js/recognition.js"></script>
     <script type="module" src="ui/js/app.js"></script>
 </body>
 </html>

@@ -110,6 +110,26 @@ async def get_health():
     """Reports whether the configured LLM brain is reachable."""
     return await brain.health_check()
 
+@app.get("/api/greeting")
+async def get_greeting():
+    """Build a time/identity-aware greeting from the bio memory layer."""
+    from core.greeting import build_greeting
+    bio = brain.memory.layers.get("bio", {})
+    last_seen = bio.get("last_seen")
+    minutes = 0
+    if last_seen:
+        try:
+            delta = datetime.now() - datetime.fromisoformat(last_seen)
+            minutes = int(delta.total_seconds() // 60)
+        except (ValueError, TypeError):
+            minutes = 0
+    text = build_greeting(bio, datetime.now().hour, minutes)
+    # Record this visit.
+    bio["last_seen"] = datetime.now().isoformat()
+    brain.memory.layers["bio"] = bio
+    brain.memory.save()
+    return {"text": text}
+
 @app.post("/api/config")
 async def update_config(config: dict):
     # Validate against the schema before touching disk, so malformed input
@@ -163,6 +183,12 @@ async def websocket_endpoint(websocket: WebSocket):
                     continue
                 if ctrl.get("type") == "interrupt":
                     print("[BARGE-IN] User interrupted Friday.")
+                    continue
+                if ctrl.get("type") == "speak" and ctrl.get("content", "").strip():
+                    # Speak text verbatim (e.g. the boot greeting) via the proactive
+                    # broadcast path — proper TTS + caption + transcript + orb pulse,
+                    # without the model reinterpreting it.
+                    await broadcast_proactive_message(ctrl["content"].strip())
                     continue
                 if ctrl.get("type") == "text" and ctrl.get("content", "").strip():
                     user_text = ctrl["content"].strip()

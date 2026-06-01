@@ -150,3 +150,14 @@ body[data-state="speaking"] .status-dot{ background:var(--accent); box-shadow:0 
 .result-card .rc-title{ font-size:9px; letter-spacing:.12em; color:#7cf5d5; margin-bottom:5px; }
 .result-card .rc-line{ font-size:11px; color:rgba(255,255,255,.78); line-height:1.5; white-space:nowrap;
   overflow:hidden; text-overflow:ellipsis; }
+
+/* Boot sequence overlay */
+#boot-overlay{ position:fixed; inset:0; z-index:300; background:#04060c;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px;
+  transition:opacity .8s; }
+#boot-overlay.gone{ opacity:0; pointer-events:none; }
+.boot-lines{ font-family:'Inter',monospace; font-size:13px; letter-spacing:.18em; color:var(--accent);
+  text-align:left; min-width:320px; min-height:140px; }
+.boot-lines .bl{ opacity:0; animation:bootline .4s forwards; }
+@keyframes bootline{ to{ opacity:1; } }
+.boot-hint{ font-size:9px; letter-spacing:.2em; color:var(--text-dim); }

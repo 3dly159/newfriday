@@ -153,4 +153,15 @@ window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('text-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendText(); });
     window.Hud?.init();
     connect();
+
+    // Cinematic boot, then recognize + greet (face if enrolled/matched, else profile).
+    window.Boot?.runBoot(async () => {
+        try { await window.Recognition?.recognize(); } catch (e) {}
+        try {
+            const g = await (await fetch('/api/greeting')).json();
+            if (g.text && socket?.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({ type: 'speak', content: g.text }));
+            }
+        } catch (e) { /* greeting is best-effort */ }
+    });
 });
