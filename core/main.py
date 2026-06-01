@@ -26,33 +26,36 @@ tts = FridayTTS()
 proactive = ProactiveEngine(brain)
 
 async def broadcast_proactive_message(message: str):
-    """Broadcasts a message to all connected UIs."""
+    """Broadcasts a proactive message to all connected UIs using the v2 event
+    contract (mood + state + transcript + caption + audio), so it shows captions
+    and pulses the orb like a normal turn."""
     if not active_connections:
         return
-
-    # Get current mood for TTS parameters
     mood_cfg = brain.personality.mood_states[brain.personality.current_mood]
-
     output_path = f"data/logs/proactive_{uuid.uuid4().hex}.mp3"
-    # We could extend TTS to accept pitch/rate, for now we use Edge-TTS defaults
-    await tts.generate_speech(message, output_path)
+    try:
+        _, words = await tts.generate_speech_timed(message, output_path)
+        with open(output_path, "rb") as f:
+            audio_bytes = f.read()
+    except Exception as e:
+        logger.error(f"Proactive TTS error: {e}")
+        words, audio_bytes = [], b""
 
-    with open(output_path, "rb") as f:
-        audio_bytes = f.read()
-
-    payload = {
-        "type": "speak_segment",
-        "text": message,
-        "is_final": True,
-        "mood": brain.personality.current_mood,
-        "orb_color": mood_cfg["orb_color"]
-    }
-
+    seg_id = uuid.uuid4().hex
     for connection in active_connections:
         try:
-            await connection.send_json(payload)
-            await connection.send_bytes(audio_bytes)
-        except:
+            await connection.send_json({"type": "mood", "mood": brain.personality.current_mood,
+                                        "orb_color": mood_cfg["orb_color"]})
+            await connection.send_json({"type": "state", "state": "speaking"})
+            await connection.send_json({"type": "transcript", "role": "friday",
+                                        "text": message, "final": True})
+            await connection.send_json({"type": "caption", "segment_id": seg_id,
+                                        "mode": "word" if words else "sentence",
+                                        "words": words, "text": message})
+            if audio_bytes:
+                await connection.send_bytes(audio_bytes)
+            await connection.send_json({"type": "state", "state": "idle"})
+        except Exception:
             pass
 
     if os.path.exists(output_path):

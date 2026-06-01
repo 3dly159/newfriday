@@ -46,93 +46,55 @@ class ProactiveEngine:
         self.is_running = False
 
     async def run_cycle(self):
-        """A single 'Thought -> Action' cycle."""
-        logger.info("Friday is initiating a proactive thought cycle...")
-
-        # 1. Gather Inputs
-        vitals = self.bridge.get_system_vitals()
-        tasks = self.brain.memory.layers.get("task", [])
-        last_interaction = self.brain.memory.layers["episodic"][-1] if self.brain.memory.layers["episodic"] else None
-
-        input_context = {
-            "vitals": vitals,
-            "current_tasks": tasks,
-            "last_interaction": last_interaction,
-            "time": datetime.now().strftime("%H:%M:%S")
-        }
-
-        # 2. Deliberation (Thought)
-        # We ask the LLM if it wants to do something. We use a specific 'internal' prompt.
-        thought_prompt = f"""
-        Current System State: {json.dumps(input_context)}
-
-        You are Friday's subconscious. Based on the state above, decide if you should:
-        1. SPEAK: If there is something important to tell the user (vitals warning, task update, or just banter).
-        2. ACT: Perform a system task (cleanup, optimization, or a quest-related action).
-        3. SILENCE: If everything is fine and you shouldn't disturb the user.
-
-        Respond in JSON format:
-        {{
-            "thought": "Your internal monologue here",
-            "decision": "SPEAK" | "ACT" | "SILENCE",
-            "payload": "The text to speak OR the tool to call",
-            "tool_input": {{}} # If decision is ACT
-        }}
-        """
+        """A single trigger-scan cycle: gather signals, score, and speak only if
+        a candidate clears the balanced threshold."""
+        from core.triggers import evaluate_triggers, THRESHOLD
+        logger.info("Friday proactive scan...")
 
         try:
-            # We use a non-streaming call for the internal thought
-            if self.brain.provider == "anthropic":
-                response = await self.brain.client.messages.create(
-                    model=self.brain.config["ai_logic"]["llm_model"],
-                    max_tokens=500,
-                    system="You are the internal monologue of Friday, an advanced AI. Be proactive, observant, and slightly protective.",
-                    messages=[{"role": "user", "content": thought_prompt}]
-                )
-                text = response.content[0].text
-            else:
-                response = await self.brain.client.chat.completions.create(
-                    model=self.brain.config["ai_logic"]["llm_model"],
-                    messages=[
-                        {"role": "system", "content": "You are the internal monologue of Friday, an advanced AI. Be proactive, observant, and slightly protective."},
-                        {"role": "user", "content": thought_prompt}
-                    ],
-                    max_tokens=500
-                )
-                text = response.choices[0].message.content
+            vitals = self.bridge.get_system_vitals()
+            # bridge vitals don't include 'plugged'; treat full battery as plugged.
+            vitals.setdefault("plugged", vitals.get("battery", 100) >= 99)
+            tasks = self.brain.memory.layers.get("task", [])
+            episodic = self.brain.memory.layers.get("episodic", [])
+            last_topic = None
+            for entry in reversed(episodic):
+                if entry.get("role") == "user":
+                    last_topic = entry.get("content", "")[:60]
+                    break
 
-            decision_data = extract_json(text)
-            if not decision_data or "decision" not in decision_data:
-                logger.info("Proactive cycle: no actionable decision parsed; staying silent.")
+            ctx = {
+                "vitals": vitals,
+                "tasks": tasks,
+                "hour": datetime.now().hour,
+                "idle_seconds": 0,
+                "minutes_since_interaction": 0,
+                "last_topic": last_topic,
+            }
+            candidates = evaluate_triggers(ctx)
+            top = candidates[0] if candidates else None
+            if not top or top["score"] < THRESHOLD:
+                logger.info("Proactive scan: nothing worth surfacing.")
                 return
 
-            thought = decision_data.get("thought", "")
-            logger.info(f"Proactive Thought: {thought}")
+            # Phrase the chosen trigger in-persona via the brain (short, single line).
+            hint = top["message_hint"]
+            try:
+                prompt = (f"As Friday, say ONE short, in-character spoken line to the user about: "
+                          f"{hint}. No preamble, just the line.")
+                line = ""
+                async for tok in self.brain.get_streaming_response(prompt):
+                    if not tok.startswith("[System") and not tok.startswith("[Approval") and not tok.startswith("[Result"):
+                        line += tok
+                line = line.strip() or hint
+            except Exception as e:
+                logger.error(f"Proactive phrasing error: {e}")
+                line = hint
 
-            # Store thought in memory (Script layer or a new 'thought' layer)
+            await self.broadcast_callback(line)
             self.brain.memory.layers.setdefault("internal_monologue", []).append({
-                "timestamp": datetime.now().isoformat(),
-                "thought": thought
-            })
-
-            # 3. Output (Action or Speech)
-            decision = decision_data.get("decision", "SILENCE")
-            if decision == "SPEAK" and decision_data.get("payload"):
-                await self.broadcast_callback(decision_data["payload"])
-            elif decision == "ACT":
-                tool_name = decision_data.get("payload")
-                tool_input = decision_data.get("tool_input", {})
-                if not tool_name:
-                    logger.info("Proactive ACT decision had no tool payload; skipping.")
-                    return
-                result = await self.brain.execute_tool(tool_name, tool_input)
-                logger.info(f"Proactive Action executed: {tool_name}. Result: {result}")
-
-                # If the action resulted in something the user should know, speak it.
-                if result and isinstance(result, str) and not result.startswith("PENDING"):
-                     await self.broadcast_callback(f"Sir, I've taken the liberty of {tool_name}. {result}")
-
+                "timestamp": datetime.now().isoformat(), "thought": f"[{top['kind']}] {hint}"})
             self.brain.memory.save()
 
         except Exception as e:
-            logger.error(f"Error in proactive deliberation: {e}")
+            logger.error(f"Error in proactive cycle: {e}")
