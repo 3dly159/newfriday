@@ -32,6 +32,7 @@ The project uses **FastAPI** with **WebSockets** for real-time bidirectional voi
 - **`core/stt.py`** — Speech-to-Text wrapper using Faster-Whisper.
 - **`core/tts.py`** — Text-to-Speech wrapper using Edge-TTS.
 - **`core/quest.py`** — Quest/ARG (Augmented Reality Game) engine for unlocking narrative content.
+- **`core/agency/`** — Real-world capability tools (web search/fetch, file/clipboard/screenshot, app/volume/media/shell), assembled by `registry.py` (schemas + permission-gated `dispatch`) and called via `brain.execute_tool`. Defaults to allow; catastrophic shell commands (`rm -rf /`, fork bomb, `mkfs`, …) are always refused regardless of permission.
 
 ### Frontend (HTML/CSS/JavaScript)
 - **`ui/index.html`** — Main UI page. Establishes WebSocket connection to `/ws/voice`, renders the holographic interface.
