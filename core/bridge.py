@@ -23,7 +23,15 @@ class PermissionManager:
             "hid_control": "ask",      # options: allow, ask, deny
             "script_execution": "ask",
             "file_system_write": "ask",
-            "app_orchestration": "allow"
+            "app_orchestration": "allow",
+            # Agency layer categories (default allow per project decision).
+            "web_access": "allow",
+            "file_read": "allow",
+            "file_write": "allow",
+            "clipboard": "allow",
+            "screenshot": "allow",
+            "app_control": "allow",
+            "shell": "allow",
         }
         self.load()
 

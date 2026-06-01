@@ -10,6 +10,7 @@ from core.quest import QuestEngine
 from core.skills import ClawhubManager
 from core.dataset import DatasetCapturer
 from core.structured import repair_json, validate_tool_args
+from core.agency import registry as agency_registry
 from core import persona
 
 class FridayBrain:
@@ -232,6 +233,9 @@ class FridayBrain:
                 }
             }
         ]
+
+        # Append agency-layer tools (web, files, system) to the brain's toolset.
+        self.tools.extend(agency_registry.AGENCY_TOOLS)
 
     async def get_streaming_response(self, user_input: str):
         # Update episodic memory
@@ -469,6 +473,8 @@ class FridayBrain:
             return self.bridge.write_source(input_data.get("filepath"), input_data.get("content"), input_data.get("backup", True))
         elif name == "run_tests":
             return self.bridge.run_tests(input_data.get("pattern", "tests/"))
+        if agency_registry.has_tool(name):
+            return await agency_registry.dispatch(name, input_data, self.bridge)
         return "Unknown tool"
 
     def _approval_marker(self, result):
