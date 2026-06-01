@@ -276,17 +276,21 @@ class FridayBrain:
 
                     tool_results = []
                     for tool_call in tool_calls:
+                        # Yield a notification to the UI about the tool being used
+                        yield f"[System: Executing {tool_call.name}...]"
                         result = await self.execute_tool(tool_call.name, tool_call.input)
                         # Check quest progress on tool execution
                         quest_updates.extend(self.quest.check_progress(json.dumps(tool_call.input), tool_executed=tool_call.name))
+
+                        marker = self._approval_marker(result)
+                        if marker:
+                            yield marker
 
                         tool_results.append({
                             "type": "tool_result",
                             "tool_use_id": tool_call.id,
                             "content": json.dumps(result)
                         })
-                        # Yield a notification to the UI about the tool being used
-                        yield f"[System: Executing {tool_call.name}...]"
 
                     # Update history with tool results
                     messages.append({"role": "user", "content": tool_results})
@@ -332,24 +336,31 @@ class FridayBrain:
                 while response.choices[0].message.tool_calls:
                     tool_calls = response.choices[0].message.tool_calls
 
+                    # Some OpenAI-compatible servers (notably Ollama) return tool
+                    # calls with a missing/empty id. Synthesize a stable one so the
+                    # assistant/tool message pairing doesn't raise KeyError: 'id'.
+                    def _tc_id(tc, i):
+                        return getattr(tc, "id", None) or f"call_{i}"
+
                     # Normalize assistant message
                     assistant_msg = {
                         "role": "assistant",
-                        "content": response.choices[0].message.content,
+                        "content": response.choices[0].message.content or "",
                         "tool_calls": [
                             {
-                                "id": tc.id,
+                                "id": _tc_id(tc, i),
                                 "type": "function",
                                 "function": {
                                     "name": tc.function.name,
                                     "arguments": tc.function.arguments
                                 }
-                            } for tc in tool_calls
+                            } for i, tc in enumerate(tool_calls)
                         ]
                     }
                     messages.append(assistant_msg)
 
-                    for tool_call in tool_calls:
+                    for i, tool_call in enumerate(tool_calls):
+                        yield f"[System: Executing {tool_call.function.name}...]"
                         raw_args = tool_call.function.arguments
                         parsed_args = repair_json(raw_args)
                         if parsed_args is None:
@@ -370,13 +381,16 @@ class FridayBrain:
                                 tool_call.function.name, parsed_args
                             )
 
+                        marker = self._approval_marker(result)
+                        if marker:
+                            yield marker
+
                         messages.append({
                             "role": "tool",
-                            "tool_call_id": tool_call.id,
+                            "tool_call_id": _tc_id(tool_call, i),
                             "name": tool_call.function.name,
                             "content": json.dumps(result)
                         })
-                        yield f"[System: Executing {tool_call.function.name}...]"
 
                     response = await self.client.chat.completions.create(
                         model=self.config["ai_logic"]["llm_model"],
@@ -388,10 +402,13 @@ class FridayBrain:
                 if final_text:
                     yield final_text
         except Exception as e:
-            # Brain unreachable or API error: respond in-character instead of
-            # failing silently, so the user always hears *something*.
-            print(f"[Brain Error] {self.provider}: {e}")
-            fallback = self._connection_error_message(e)
+            # Respond in-character instead of failing silently. Distinguish a real
+            # connection problem from an internal bug so we don't keep blaming
+            # Ollama for our own errors (and so bugs stay debuggable).
+            import traceback
+            print(f"[Brain Error] {self.provider}: {type(e).__name__}: {e}")
+            traceback.print_exc()
+            fallback = self._error_message(e)
             self.memory.add_episodic("assistant", fallback)
             yield fallback
             return
@@ -454,16 +471,42 @@ class FridayBrain:
             return self.bridge.run_tests(input_data.get("pattern", "tests/"))
         return "Unknown tool"
 
-    def _connection_error_message(self, error):
-        """An in-character message for when the language core is unreachable."""
-        if self.provider == "ollama":
-            hint = ("my local Ollama brain isn't responding. Start it with "
-                    "'ollama serve' and make sure the model is pulled")
-        elif self.provider == "anthropic":
-            hint = "my Anthropic uplink is down. Do check that ANTHROPIC_API_KEY is set"
-        else:
-            hint = "my language core is unreachable"
-        return f"My apologies, Sir — {hint}. I'll be quite useless until then."
+    def _approval_marker(self, result):
+        """If a tool result is a pending-permission sentinel, return a marker
+        token (caught by VoiceSession to raise the approval prompt). Else None."""
+        if isinstance(result, str) and result.startswith("PENDING_APPROVAL:"):
+            category = result.split(":", 1)[1].strip()
+            return f"[Approval: {category}]"
+        return None
+
+    def _is_connection_error(self, error):
+        """True only for genuine 'can't reach the brain' failures — not internal
+        bugs like KeyError/TypeError, which must not be blamed on the server."""
+        import httpx
+        if isinstance(error, (httpx.ConnectError, httpx.ConnectTimeout,
+                              httpx.ReadTimeout, ConnectionError, TimeoutError)):
+            return True
+        text = f"{type(error).__name__}: {error}".lower()
+        markers = ("connection refused", "connect call failed", "cannot connect",
+                   "failed to establish", "max retries", "timed out",
+                   "name or service not known", "connection error", "apiconnectionerror")
+        return any(m in text for m in markers)
+
+    def _error_message(self, error):
+        """In-character message. Connection failures get the 'start your brain'
+        hint; everything else admits an internal hiccup honestly."""
+        if self._is_connection_error(error):
+            if self.provider == "ollama":
+                hint = ("my local Ollama brain isn't responding. Start it with "
+                        "'ollama serve' and make sure the model is pulled")
+            elif self.provider == "anthropic":
+                hint = "my Anthropic uplink is down. Do check that ANTHROPIC_API_KEY is set"
+            else:
+                hint = "my language core is unreachable"
+            return f"My apologies, Sir — {hint}. I'll be quite useless until then."
+        # Internal error — don't pretend the server is down.
+        return ("My apologies, Sir — I hit an internal snag processing that "
+                f"({type(error).__name__}). It's logged; do try again.")
 
     async def health_check(self):
         """Lightweight reachability probe for the configured provider."""

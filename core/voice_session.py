@@ -71,8 +71,6 @@ class VoiceSession:
         spoke = False
 
         async for token in self.brain.get_streaming_response(user_text):
-            full_reply += token
-
             if token.startswith("[System: Executing "):
                 tool = token[len("[System: Executing "):].rstrip(".]").rstrip(".")
                 tool = tool.replace("...", "").strip()
@@ -80,6 +78,18 @@ class VoiceSession:
                 await self._emit(events.action_event(tool, "start", f"Running {tool}"))
                 await self._emit(events.state_event("acting"))
                 continue
+
+            if token.startswith("[Approval:"):
+                category = token[len("[Approval:"):].rstrip("]").strip()
+                # Mark the corresponding action chip as needing approval, and
+                # ask the UI to prompt the user.
+                if open_actions:
+                    await self._emit(events.action_event(open_actions[-1], "error", "needs approval"))
+                await self._emit(events.approval_event(category))
+                continue
+
+            # Real assistant text from here on.
+            full_reply += token
 
             if open_actions:
                 for t in open_actions:

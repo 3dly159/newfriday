@@ -28,3 +28,8 @@ def action_event(tool, phase, label):
 
 def mood_event(mood, orb_color):
     return {"type": "mood", "mood": mood, "orb_color": orb_color}
+
+
+def approval_event(category):
+    """Friday is asking the user to grant a gated permission (e.g. hid_control)."""
+    return {"type": "approval", "category": category}

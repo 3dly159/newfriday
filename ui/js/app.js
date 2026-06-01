@@ -43,6 +43,7 @@ function handleEvent(msg) {
             pendingCaption = { segment_id: msg.segment_id, words: msg.words, mode: msg.mode, text: msg.text };
             break;
         case 'action': window.Hud?.action(msg); break;
+        case 'approval': window.Hud?.requestApproval(msg.category); break;
         case 'arg_unlocked': window.Hud?.glitch(); break;
         case 'status': break;
     }
