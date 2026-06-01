@@ -79,6 +79,12 @@ async def get_index():
     from fastapi.responses import FileResponse
     return FileResponse("ui/index.html")
 
+@app.get("/favicon.ico")
+async def favicon():
+    # Avoid a noisy 404 in the browser console; we have no icon asset.
+    from fastapi.responses import Response
+    return Response(status_code=204)
+
 # Static files should be mounted at a specific path if we have API routes
 app.mount("/ui", StaticFiles(directory="ui"), name="static")
 
@@ -103,9 +109,14 @@ async def get_health():
 
 @app.post("/api/config")
 async def update_config(config: dict):
-    # Strip runtime-only keys (e.g. injected system_memory) before persisting.
-    from core.config import save_config
-    save_config(config)
+    # Validate against the schema before touching disk, so malformed input
+    # (e.g. "[object Object]" or out-of-range values) can't corrupt the registry.
+    from fastapi.responses import JSONResponse
+    from core.config import validate_config, save_config
+    ok, errors, cleaned = validate_config(config)
+    if not ok:
+        return JSONResponse(status_code=422, content={"status": "invalid", "errors": errors})
+    save_config(cleaned)
     # Re-initialize modules with new config
     global brain, stt, tts
     brain = FridayBrain()

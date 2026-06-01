@@ -6,6 +6,23 @@ import os
 TICKS_PER_MS = 10000  # Edge-TTS reports offset/duration in 100-nanosecond ticks
 
 
+async def retry_async(op, attempts=3, base_delay=0.5):
+    """Await `op()` with exponential backoff on transient errors.
+
+    A network blip to the TTS service shouldn't make Friday go silent for a whole
+    turn. Retries `attempts` times (delays: base, 2*base, ...), then re-raises.
+    """
+    last = None
+    for i in range(attempts):
+        try:
+            return await op()
+        except Exception as e:  # transient network/service errors
+            last = e
+            if i < attempts - 1 and base_delay:
+                await asyncio.sleep(base_delay * (2 ** i))
+    raise last
+
+
 def boundary_to_word(chunk):
     """Convert one Edge-TTS WordBoundary chunk to our word-timing dict."""
     return {
@@ -35,16 +52,24 @@ class FridayTTS:
 
     async def generate_speech_timed(self, text: str, output_path: str):
         """Synthesize speech and return (output_path, words) where words is a list
-        of {word, offset_ms, duration_ms} from Edge-TTS WordBoundary events."""
-        import edge_tts
-        communicate = edge_tts.Communicate(text, self.voice, rate=self.rate, boundary="WordBoundary")
-        audio = bytearray()
-        chunks = []
-        async for chunk in communicate.stream():
-            if chunk["type"] == "audio":
-                audio.extend(chunk["data"])
-            else:
-                chunks.append(chunk)
+        of {word, offset_ms, duration_ms} from Edge-TTS WordBoundary events.
+        Retries transient network failures so a single blip doesn't drop the turn."""
+        directory = os.path.dirname(output_path)
+        if directory:
+            os.makedirs(directory, exist_ok=True)
+
+        async def _synth():
+            communicate = edge_tts.Communicate(text, self.voice, rate=self.rate, boundary="WordBoundary")
+            audio = bytearray()
+            chunks = []
+            async for chunk in communicate.stream():
+                if chunk["type"] == "audio":
+                    audio.extend(chunk["data"])
+                else:
+                    chunks.append(chunk)
+            return audio, chunks
+
+        audio, chunks = await retry_async(_synth, attempts=3, base_delay=0.4)
         with open(output_path, "wb") as f:
             f.write(audio)
         return output_path, words_from_chunks(chunks)
