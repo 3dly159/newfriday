@@ -20,6 +20,7 @@
             <div class="wordmark">FRIDAY<span class="dot"></span></div>
             <div class="header-actions">
                 <span class="state-label" id="state-label">STANDBY</span>
+                <a class="icon-btn" id="neural-btn" href="ui/neural.html" title="Neural Map">&#9737;</a>
                 <button class="icon-btn" id="settings-btn" title="Settings">&#9881;</button>
                 <div class="status-dot" id="status-dot"></div>
             </div>
@@ -44,19 +45,20 @@
         </div>
     </div>
 
-    <div id="settings-modal" class="modal hidden">
-        <div class="glass-panel modal-content">
-            <h2>System Configuration</h2>
-            <div class="settings-grid" id="settings-form"></div>
-            <h2 style="margin-top:28px">Security Permissions</h2>
-            <div class="settings-grid" id="permissions-form"></div>
-            <div class="modal-actions">
-                <button id="save-settings" class="action-btn">APPLY</button>
-                <button id="close-settings" class="action-btn secondary">CLOSE</button>
-            </div>
+    <!-- Settings sidebar -->
+    <div id="settings-scrim" class="settings-scrim hidden"></div>
+    <aside id="settings-sidebar" class="settings-sidebar hidden">
+        <div class="settings-head">
+            <span>CONFIGURATION</span>
+            <button class="icon-btn" id="close-settings" title="Close">&#10005;</button>
         </div>
-    </div>
+        <div class="settings-body" id="settings-body"></div>
+        <div class="settings-foot">
+            <button id="save-settings" class="action-btn">APPLY CHANGES</button>
+        </div>
+    </aside>
 
+    <!-- Permission Approval Toast -->
     <div id="permission-toast" class="toast hidden">
         <div class="glass-panel toast-content">
             <p id="toast-message">Permission Request</p>

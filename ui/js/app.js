@@ -30,8 +30,12 @@ function handleEvent(msg) {
     switch (msg.type) {
         case 'state':
             setState(msg.state);
-            if (msg.state !== 'idle') window.Conversation?.open();
-            else window.Conversation?.scheduleRecede();
+            if (msg.state !== 'idle') {
+                window.Conversation?.open();
+            } else {
+                window.Conversation?.scheduleRecede();
+                window.Orb?.resetColor();   // back to arc-reactor blue when done
+            }
             break;
         case 'mood': window.Orb?.setColor(msg.orb_color); break;
         case 'transcript': window.Conversation?.addMessage(msg.role, msg.text); break;

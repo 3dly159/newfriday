@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FRIDAY — Neural Map</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        #neural-canvas{ position:absolute; inset:0; width:100%; height:100%; z-index:1; }
+        .neural-header{ position:fixed; top:18px; left:18px; right:18px; z-index:10;
+            display:flex; align-items:center; justify-content:space-between; padding:0 18px; height:54px; pointer-events:auto; }
+        .neural-title{ font-weight:700; letter-spacing:.22em; font-size:15px; }
+        .neural-title small{ color:var(--text-dim); font-weight:400; letter-spacing:.18em; margin-left:10px; font-size:10px; }
+        .back-btn{ pointer-events:auto; }
+        .neural-hint{ position:fixed; bottom:24px; left:50%; transform:translateX(-50%); z-index:10;
+            font-size:11px; letter-spacing:.1em; color:var(--text-dim); }
+    </style>
+    <script type="importmap">
+    { "imports": {
+        "three": "https://unpkg.com/three@0.174.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.174.0/examples/jsm/"
+    }}
+    </script>
+</head>
+<body>
+    <canvas id="neural-canvas"></canvas>
+    <header class="glass-panel neural-header">
+        <div class="neural-title">FRIDAY <small>NEURAL MAP</small></div>
+        <a class="icon-btn back-btn" href="../" title="Back">&#8592; BACK</a>
+    </header>
+    <div class="neural-hint">Drag to orbit &middot; scroll to zoom</div>
+    <script type="module" src="js/neural.js"></script>
+</body>
+</html>

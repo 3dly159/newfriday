@@ -30,55 +30,132 @@ function glitch() {
     setTimeout(() => document.body.classList.remove('glitch-mode'), 3000);
 }
 
+// ---- Settings sidebar (scrollable, collapsible dropdown groups) ----
+
+// Known enums get a <select>; everything else is a text field.
+const ENUMS = {
+    model_provider: ['ollama', 'anthropic', 'openai'],
+    interaction_mode: ['continuous', 'wake_word'],
+    auto_approve_hid: ['true', 'false'],
+    capture_dataset: ['true', 'false'],
+};
+const PERM_VALUES = ['allow', 'ask', 'deny'];
+
+function sidebar() { return document.getElementById('settings-sidebar'); }
+function scrim() { return document.getElementById('settings-scrim'); }
+
 function init() {
     document.getElementById('settings-btn').addEventListener('click', openSettings);
-    document.getElementById('close-settings').addEventListener('click', () => modal().classList.add('hidden'));
+    document.getElementById('close-settings').addEventListener('click', closeSettings);
+    scrim().addEventListener('click', closeSettings);
     document.getElementById('save-settings').addEventListener('click', saveSettings);
     setInterval(updateVitals, 2500);
 }
-const modal = () => document.getElementById('settings-modal');
+
 async function openSettings() {
-    const cfg = await (await fetch('/api/config')).json();
-    renderSettings(cfg);
-    const perms = await (await fetch('/api/permissions')).json();
-    renderPermissions(perms);
-    modal().classList.remove('hidden');
-}
-function renderSettings(cfg) {
-    const form = document.getElementById('settings-form'); form.innerHTML = '';
-    for (const section in cfg) {
-        if (typeof cfg[section] !== 'object' || cfg[section] === null) continue;
-        for (const key in cfg[section]) {
-            const label = document.createElement('label'); label.textContent = `${section}.${key}`; label.style.fontSize = '11px';
-            const input = document.createElement('input'); input.type = 'text'; input.value = cfg[section][key];
-            input.dataset.section = section; input.dataset.key = key;
-            input.style.cssText = 'background:rgba(255,255,255,.08);border:1px solid var(--border);color:#fff;padding:6px;border-radius:6px';
-            form.appendChild(label); form.appendChild(input);
+    const body = document.getElementById('settings-body');
+    body.innerHTML = '';
+    try {
+        const cfg = await (await fetch('/api/config')).json();
+        for (const section in cfg) {
+            if (typeof cfg[section] !== 'object' || cfg[section] === null) continue; // skip system_memory blob etc.
+            body.appendChild(configGroup(section, cfg[section]));
         }
+        const perms = await (await fetch('/api/permissions')).json();
+        if (perms && typeof perms === 'object') body.appendChild(permGroup(perms));
+    } catch (e) {
+        body.innerHTML = `<p class="settings-error">Could not load settings: ${e}</p>`;
     }
+    scrim().classList.remove('hidden');
+    sidebar().classList.remove('hidden');
+    requestAnimationFrame(() => { sidebar().classList.add('open'); scrim().classList.add('open'); });
 }
-function renderPermissions(perms) {
-    const form = document.getElementById('permissions-form'); form.innerHTML = '';
-    if (typeof perms !== 'object') return;
+
+function closeSettings() {
+    sidebar().classList.remove('open');
+    scrim().classList.remove('open');
+    setTimeout(() => { sidebar().classList.add('hidden'); scrim().classList.add('hidden'); }, 350);
+}
+
+function field(section, key, value) {
+    const row = document.createElement('label');
+    row.className = 'settings-field';
+    row.innerHTML = `<span class="fk">${key.replace(/_/g, ' ')}</span>`;
+    let input;
+    if (ENUMS[key]) {
+        input = document.createElement('select');
+        ENUMS[key].forEach(opt => {
+            const o = document.createElement('option');
+            o.value = opt; o.textContent = opt;
+            if (String(value) === opt) o.selected = true;
+            input.appendChild(o);
+        });
+    } else {
+        input = document.createElement('input');
+        input.type = 'text';
+        input.value = value;
+    }
+    input.dataset.section = section;
+    input.dataset.key = key;
+    row.appendChild(input);
+    return row;
+}
+
+function configGroup(section, obj) {
+    const d = document.createElement('details');
+    d.className = 'settings-group';
+    d.open = true;
+    const sum = document.createElement('summary');
+    sum.textContent = section.replace(/_/g, ' ');
+    d.appendChild(sum);
+    for (const key in obj) d.appendChild(field(section, key, obj[key]));
+    return d;
+}
+
+function permGroup(perms) {
+    const d = document.createElement('details');
+    d.className = 'settings-group';
+    d.open = true;
+    const sum = document.createElement('summary');
+    sum.textContent = 'security permissions';
+    d.appendChild(sum);
     for (const key in perms) {
-        const label = document.createElement('label'); label.textContent = key.replace(/_/g, ' '); label.style.fontSize = '11px';
-        const sel = document.createElement('select'); sel.dataset.key = key;
-        ['allow', 'ask', 'deny'].forEach(o => { const op = document.createElement('option'); op.value = o; op.textContent = o.toUpperCase(); if (o === perms[key]) op.selected = true; sel.appendChild(op); });
-        sel.style.cssText = 'background:rgba(255,255,255,.08);border:1px solid var(--border);color:#fff;padding:6px;border-radius:6px';
-        form.appendChild(label); form.appendChild(sel);
+        const row = document.createElement('label');
+        row.className = 'settings-field';
+        row.innerHTML = `<span class="fk">${key.replace(/_/g, ' ')}</span>`;
+        const sel = document.createElement('select');
+        sel.dataset.perm = key;
+        PERM_VALUES.forEach(v => {
+            const o = document.createElement('option');
+            o.value = v; o.textContent = v.toUpperCase();
+            if (perms[key] === v) o.selected = true;
+            sel.appendChild(o);
+        });
+        row.appendChild(sel);
+        d.appendChild(row);
     }
+    return d;
 }
+
 async function saveSettings() {
     const cfg = {};
-    document.querySelectorAll('#settings-form input').forEach(i => {
-        const { section, key } = i.dataset; cfg[section] = cfg[section] || {};
-        let v = i.value; if (v !== '' && !isNaN(v)) v = parseFloat(v); cfg[section][key] = v;
+    document.querySelectorAll('#settings-body [data-section]').forEach(i => {
+        const { section, key } = i.dataset;
+        cfg[section] = cfg[section] || {};
+        let v = i.value;
+        if (v !== '' && !isNaN(v) && i.tagName !== 'SELECT') v = parseFloat(v);
+        cfg[section][key] = v;
     });
     await fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cfg) });
-    const perms = {}; document.querySelectorAll('#permissions-form select').forEach(s => perms[s.dataset.key] = s.value);
-    await fetch('/api/permissions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(perms) });
-    modal().classList.add('hidden');
+
+    const perms = {};
+    document.querySelectorAll('#settings-body [data-perm]').forEach(s => perms[s.dataset.perm] = s.value);
+    if (Object.keys(perms).length) {
+        await fetch('/api/permissions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(perms) });
+    }
+    closeSettings();
 }
+
 async function updateVitals() {
     try {
         const v = await (await fetch('/api/vitals')).json();
