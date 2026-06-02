@@ -18,13 +18,15 @@ The project uses **FastAPI** with **WebSockets** for real-time bidirectional voi
 ## Core Architecture
 
 ### Backend (Python/FastAPI)
-- **`core/main.py`** — FastAPI app entry point. Handles WebSocket connections for voice streaming, API endpoints for config/permissions, and lifespan management.
+- **`core/main.py`** — FastAPI app entry point. Handles WebSocket connections for voice streaming, API endpoints for config/permissions, and lifespan management. Wraps turns in try/except with structured logging for global error resilience.
 - **`core/brain.py`** — The central intelligence. Routes requests to the appropriate LLM (Anthropic or OpenAI), manages personality, memory layers, and streaming responses.
-- **`core/memory.py`** — The 7-layer memory system: Bio, Lore, Skill, Script, Social, Task, Episodic. Persisted to `data/memory.json`.
-- **`core/proactive.py`** — ProactiveEngine that periodically generates contextual messages to initiate conversations with the user.
+- **`core/memory.py`** — The 7-layer memory system: Bio, Lore, Skill, Script, Social, Task, Episodic. Persisted to `data/memory.json` using atomic writes.
+- **`core/atomicio.py`** — Helper for writing JSON files atomically using a temporary file and rotating backups, protecting against memory/config/schedule corruption.
+- **`core/scheduler.py`** — Pure scheduler logic. Parses human expressions like "in 20m", "at 17:00", or "daily at 07:30" into absolute dates or recurring daily spec. Checks for due entries and runs them in `core/proactive.py` cycle independent of user presence.
+- **`core/proactive.py`** — ProactiveEngine that periodically generates contextual messages to initiate conversations with the user. Now fires due scheduler entries.
 - **`core/agents.py`** — Multi-agent orchestration (Legion Protocol). Allows Friday to delegate complex tasks to specialized sub-agents.
 - **`core/personality.py`** — Personality traits, mood states, and contextual response patterns.
-- **`core/bridge.py`** — Bridge to system-level operations (file I/O, mouse/keyboard control, permissions, system vitals).
+- **`core/bridge.py`** — Bridge to system-level operations (file I/O, mouse/keyboard control, permissions, system vitals). Permissions default to allow for "schedule", "documents", "email".
 - **`core/skills.py`** — Clawhub skills manager. Loads skill manifests from `config/skills.json`.
 - **`core/persona.py`** — The Friday persona contract: single versioned source of truth for personality, tool discipline, voice brevity, and lore. `FridayPersonality.get_system_prompt` delegates here. Also selects/formats few-shot exemplars from `data/persona/exemplars.jsonl`.
 - **`core/structured.py`** — Tool-call argument validation (`validate_tool_args`) and tolerant JSON repair (`repair_json`) for rock-solid tool-calling. `core/proactive.py` reuses `repair_json`.
@@ -32,7 +34,7 @@ The project uses **FastAPI** with **WebSockets** for real-time bidirectional voi
 - **`core/stt.py`** — Speech-to-Text wrapper using Faster-Whisper.
 - **`core/tts.py`** — Text-to-Speech wrapper using Edge-TTS.
 - **`core/quest.py`** — Quest/ARG (Augmented Reality Game) engine for unlocking narrative content.
-- **`core/agency/`** — Real-world capability tools (web search/fetch, file/clipboard/screenshot, app/volume/media/shell), assembled by `registry.py` (schemas + permission-gated `dispatch`) and called via `brain.execute_tool`. Defaults to allow; catastrophic shell commands (`rm -rf /`, fork bomb, `mkfs`, …) are always refused regardless of permission.
+- **`core/agency/`** — Real-world capability tools. Now includes `documents.py` (PDF via pypdf & text document understanding, line-by-line keyword searching) and `email_gmail.py` (Gmail API integration for checking inbox, search, draft, send, with graceful degradation when unconfigured). Real-world tools are assembled by `registry.py` (schemas + permission-gated `dispatch`) and called via `brain.execute_tool`. New permission categories include `schedule`, `documents`, and `email` (default allowed). Refuses catastrophic commands.
 - **`core/triggers.py`** — Pure proactive trigger scoring. `evaluate_triggers(ctx)` scores vitals/time/tasks/web signals; `core/proactive.py` surfaces a message only above `THRESHOLD` (balanced cadence).
 - **`core/greeting.py`** — Pure greeting composition (`build_greeting`, time/identity/absence aware) + `pick_greeting_mode` (mirrors `ui/js/recognition.js`). Served via `GET /api/greeting`.
 
