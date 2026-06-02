@@ -39,10 +39,8 @@ class FridayMemory:
                 self.layers.update(json.load(f))
 
     def save(self):
-        # Create directory if it doesn't exist
-        os.makedirs(os.path.dirname(self.storage_path), exist_ok=True)
-        with open(self.storage_path, "w") as f:
-            json.dump(self.layers, f, indent=4)
+        from core.atomicio import atomic_write_json
+        atomic_write_json(self.storage_path, self.layers)
 
     def add_episodic(self, role, content):
         timestamp = datetime.now().isoformat()

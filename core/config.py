@@ -91,9 +91,6 @@ def load_config(path: str = REGISTRY_PATH) -> dict:
 def save_config(config: dict, path: str = REGISTRY_PATH) -> dict:
     """Persist config to disk after stripping runtime-only keys."""
     clean = sanitize_config(config)
-    directory = os.path.dirname(path)
-    if directory:
-        os.makedirs(directory, exist_ok=True)
-    with open(path, "w") as f:
-        json.dump(clean, f, indent=4)
+    from core.atomicio import atomic_write_json
+    atomic_write_json(path, clean)
     return clean
