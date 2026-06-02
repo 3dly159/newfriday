@@ -168,6 +168,7 @@ window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('send-btn').addEventListener('click', sendText);
     document.getElementById('text-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendText(); });
     window.Hud?.init();
+    window.Conversation?.init();   // restore persisted transcript + wire panel controls
     connect();
 
     // Cinematic boot, then recognize + greet (face if enrolled/matched, else profile).

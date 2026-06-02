@@ -48,9 +48,16 @@
         <div id="action-rail"></div>
 
         <aside class="glass-panel convo-panel" id="convo-panel">
-            <header class="convo-head">CONVERSATION</header>
+            <header class="convo-head">
+                <span>CONVERSATION</span>
+                <span class="convo-actions">
+                    <button class="convo-btn" id="convo-clear" title="Clear history">&#128465;</button>
+                    <button class="convo-btn" id="convo-close" title="Collapse">&#10005;</button>
+                </span>
+            </header>
             <div class="convo-scroll" id="convo-scroll"></div>
         </aside>
+        <button class="convo-reopen" id="convo-reopen" title="Show conversation">&#128172;</button>
 
         <div class="command-bar">
             <button class="mic-btn" id="mic-trigger" title="Talk">
