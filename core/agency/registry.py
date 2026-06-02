@@ -1,5 +1,5 @@
 import inspect
-from core.agency import web, files, system
+from core.agency import web, files, system, documents
 
 
 def _schedule_add(text, when):
@@ -56,6 +56,10 @@ AGENCY_TOOLS = [
      "input_schema": {"type": "object", "properties": {}}},
     {"name": "cancel_schedule", "description": "Cancel a scheduled task by its id.",
      "input_schema": {"type": "object", "properties": {"id": {"type": "string"}}, "required": ["id"]}},
+    {"name": "read_document", "description": "Read a local document (text, markdown, or PDF) and return its text.",
+     "input_schema": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}},
+    {"name": "search_in_document", "description": "Find lines matching a query inside a local document.",
+     "input_schema": {"type": "object", "properties": {"path": {"type": "string"}, "query": {"type": "string"}}, "required": ["path", "query"]}},
 ]
 
 # tool name -> permission category
@@ -69,6 +73,7 @@ PERMISSION_MAP = {
     "run_shell": "shell",
     "system_info": "file_read",
     "schedule_task": "schedule", "list_schedules": "schedule", "cancel_schedule": "schedule",
+    "read_document": "documents", "search_in_document": "documents",
 }
 
 # tool name -> implementation callable
@@ -89,6 +94,8 @@ IMPL = {
     "schedule_task": lambda a: _schedule_add(a.get("text", ""), a.get("when", "")),
     "list_schedules": lambda a: _schedule_list(),
     "cancel_schedule": lambda a: _schedule_cancel(a.get("id", "")),
+    "read_document": lambda a: documents.read_document(a.get("path", "")),
+    "search_in_document": lambda a: documents.search_in_document(a.get("path", ""), a.get("query", "")),
 }
 
 
