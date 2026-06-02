@@ -1,5 +1,5 @@
 import inspect
-from core.agency import web, files, system, documents
+from core.agency import web, files, system, documents, email_gmail
 
 
 def _schedule_add(text, when):
@@ -60,6 +60,14 @@ AGENCY_TOOLS = [
      "input_schema": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}},
     {"name": "search_in_document", "description": "Find lines matching a query inside a local document.",
      "input_schema": {"type": "object", "properties": {"path": {"type": "string"}, "query": {"type": "string"}}, "required": ["path", "query"]}},
+    {"name": "email_check", "description": "Check recent inbox emails (sender + subject).",
+     "input_schema": {"type": "object", "properties": {"n": {"type": "integer"}}}},
+    {"name": "email_search", "description": "Search the mailbox with a Gmail query.",
+     "input_schema": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]}},
+    {"name": "email_draft", "description": "Draft an email (saved, not sent).",
+     "input_schema": {"type": "object", "properties": {"to": {"type": "string"}, "subject": {"type": "string"}, "body": {"type": "string"}}, "required": ["to", "subject", "body"]}},
+    {"name": "email_send", "description": "Send an email.",
+     "input_schema": {"type": "object", "properties": {"to": {"type": "string"}, "subject": {"type": "string"}, "body": {"type": "string"}}, "required": ["to", "subject", "body"]}},
 ]
 
 # tool name -> permission category
@@ -74,6 +82,7 @@ PERMISSION_MAP = {
     "system_info": "file_read",
     "schedule_task": "schedule", "list_schedules": "schedule", "cancel_schedule": "schedule",
     "read_document": "documents", "search_in_document": "documents",
+    "email_check": "email", "email_search": "email", "email_draft": "email", "email_send": "email",
 }
 
 # tool name -> implementation callable
@@ -96,6 +105,10 @@ IMPL = {
     "cancel_schedule": lambda a: _schedule_cancel(a.get("id", "")),
     "read_document": lambda a: documents.read_document(a.get("path", "")),
     "search_in_document": lambda a: documents.search_in_document(a.get("path", ""), a.get("query", "")),
+    "email_check": lambda a: email_gmail.email_check(a.get("n", 5)),
+    "email_search": lambda a: email_gmail.email_search(a.get("query", "")),
+    "email_draft": lambda a: email_gmail.email_draft(a.get("to", ""), a.get("subject", ""), a.get("body", "")),
+    "email_send": lambda a: email_gmail.email_send(a.get("to", ""), a.get("subject", ""), a.get("body", "")),
 }
 
 

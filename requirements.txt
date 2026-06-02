@@ -15,4 +15,7 @@ httpx
 python-multipart
 websockets
 pypdf
+google-api-python-client
+google-auth-oauthlib
+
 
