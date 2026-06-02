@@ -31,3 +31,18 @@ def test_pick_mode_profile_on_any_failure():
     assert pick_greeting_mode(has_camera=False, enrolled=True, matched=False) == "profile"
     assert pick_greeting_mode(has_camera=True, enrolled=False, matched=False) == "profile"
     assert pick_greeting_mode(has_camera=True, enrolled=True, matched=False) == "profile"
+
+
+from core.greeting import greeting_prompt
+
+
+def test_greeting_prompt_includes_time_and_name():
+    p = greeting_prompt({"name": "Tony", "title": "Sir"}, hour=8, minutes_since_seen=0)
+    assert "morning" in p.lower()
+    assert "Tony" in p or "Sir" in p
+    assert "one" in p.lower() and "greet" in p.lower()
+
+
+def test_greeting_prompt_mentions_absence():
+    p = greeting_prompt({"title": "Sir"}, hour=14, minutes_since_seen=600)
+    assert "while" in p.lower() or "back" in p.lower() or "hours" in p.lower()

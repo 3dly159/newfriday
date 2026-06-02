@@ -125,19 +125,39 @@ async def get_health():
 
 @app.get("/api/greeting")
 async def get_greeting():
-    """Build a time/identity-aware greeting from the bio memory layer."""
-    from core.greeting import build_greeting
+    """Generate an in-persona greeting via the brain, record it as Friday's first
+    assistant turn (so she's aware she greeted the user), and return it. Falls back
+    to the templated greeting if the brain is unreachable."""
+    from core.greeting import build_greeting, greeting_prompt
     bio = brain.memory.layers.get("bio", {})
     last_seen = bio.get("last_seen")
     minutes = 0
     if last_seen:
         try:
-            delta = datetime.now() - datetime.fromisoformat(last_seen)
-            minutes = int(delta.total_seconds() // 60)
+            minutes = int((datetime.now() - datetime.fromisoformat(last_seen)).total_seconds() // 60)
         except (ValueError, TypeError):
             minutes = 0
-    text = build_greeting(bio, datetime.now().hour, minutes)
-    # Record this visit.
+
+    hour = datetime.now().hour
+    text = ""
+    try:
+        prompt = greeting_prompt(bio, hour, minutes)
+        async for tok in brain.get_streaming_response(prompt):
+            if not tok.startswith("[System") and not tok.startswith("[Approval") and not tok.startswith("[Result"):
+                text += tok
+        text = text.strip()
+    except Exception as e:
+        logger.error(f"Greeting generation failed: {e}")
+        text = ""
+    if not text:
+        text = build_greeting(bio, hour, minutes)
+
+    # get_streaming_response already appends the user prompt + assistant reply to
+    # episodic memory; if we fell back, record the greeting as an assistant turn.
+    if text and (not brain.memory.layers["episodic"] or
+                 brain.memory.layers["episodic"][-1].get("content") != text):
+        brain.memory.add_episodic("assistant", text)
+
     bio["last_seen"] = datetime.now().isoformat()
     brain.memory.layers["bio"] = bio
     brain.memory.save()
