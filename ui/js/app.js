@@ -100,7 +100,7 @@ async function startRecording() {
     if (!MediaRecorder.isTypeSupported(opts.mimeType)) delete opts.mimeType;
     mediaRecorder = new MediaRecorder(micStream, opts);
     mediaRecorder.ondataavailable = (ev) => {
-        if (ev.data.size > 0 && socket?.readyState === WebSocket.OPEN) socket.send(ev.data);
+        if (ev.data.size > 0 && shouldSend()) socket.send(ev.data);
     };
     const iv = setInterval(() => {
         if (mediaRecorder.state === 'recording') { mediaRecorder.stop(); mediaRecorder.start(); }
@@ -116,6 +116,10 @@ function stopRecording() {
     }
     setState('idle');
 }
+let micMuted = false;
+let speechActive = false;
+const SPEECH_RMS = 0.04; // above this = speech present
+
 function startMicVAD(stream) {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const src = ctx.createMediaStreamSource(stream);
@@ -126,10 +130,18 @@ function startMicVAD(stream) {
         micAnalyser.getByteTimeDomainData(buf);
         let s = 0; for (let i = 0; i < buf.length; i++) { const v = (buf[i] - 128) / 128; s += v * v; }
         const rms = Math.sqrt(s / buf.length);
-        if (isPlaying && rms > BARGE_RMS) { if (++bargeFrames >= 3) { stopSpeaking(); bargeFrames = 0; } }
-        else bargeFrames = 0;
+        speechActive = rms > SPEECH_RMS;
         requestAnimationFrame(tick);
     })();
+}
+
+// Open-mic guard: send a chunk only when not muted, Friday isn't speaking, and
+// recent audio actually contains speech (no silence, no self-hearing).
+function shouldSend() {
+    return !micMuted
+        && document.body.dataset.state !== 'speaking'
+        && speechActive
+        && socket?.readyState === WebSocket.OPEN;
 }
 
 function sendText() {
@@ -141,14 +153,18 @@ function sendText() {
     input.value = '';
 }
 
-let listening = false;
-function toggleMic() {
-    listening = !listening;
-    document.getElementById('mic-trigger').classList.toggle('active', listening);
-    listening ? startRecording() : stopRecording();
+function toggleMute() {
+    micMuted = !micMuted;
+    const btn = document.getElementById('mic-trigger');
+    btn.classList.toggle('active', !micMuted);   // active = listening
+    btn.title = micMuted ? 'Muted — click to listen' : 'Listening — click to mute';
 }
 window.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('mic-trigger').addEventListener('click', toggleMic);
+    document.getElementById('mic-trigger').addEventListener('click', toggleMute);
+    // Open mic: start listening automatically (best-effort; needs permission).
+    startRecording().then(() => {
+        document.getElementById('mic-trigger').classList.add('active');
+    }).catch((e) => console.log('[mic] autostart failed (permission?):', e.message));
     document.getElementById('send-btn').addEventListener('click', sendText);
     document.getElementById('text-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendText(); });
     window.Hud?.init();
