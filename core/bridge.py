@@ -32,6 +32,9 @@ class PermissionManager:
             "screenshot": "allow",
             "app_control": "allow",
             "shell": "allow",
+            "schedule": "allow",
+            "documents": "allow",
+            "email": "allow",
         }
         self.load()
 

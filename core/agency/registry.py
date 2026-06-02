@@ -1,6 +1,27 @@
 import inspect
 from core.agency import web, files, system
 
+
+def _schedule_add(text, when):
+    from core.scheduler import add_entry
+    if not text or not when:
+        return "Need both text and when (e.g. 'in 20m')."
+    e = add_entry(text, when)
+    return f"Scheduled ({e['id']}): \"{e['text']}\" — {e['when']}"
+
+
+def _schedule_list():
+    from core.scheduler import load_schedule
+    entries = load_schedule()
+    if not entries:
+        return "No scheduled tasks."
+    return [{"id": e["id"], "when": e["when"], "text": e["text"]} for e in entries]
+
+
+def _schedule_cancel(entry_id):
+    from core.scheduler import cancel_entry
+    return f"Cancelled {entry_id}." if cancel_entry(entry_id) else f"No schedule with id {entry_id}."
+
 # Tool schemas (same shape as core/brain.py tools).
 AGENCY_TOOLS = [
     {"name": "web_search", "description": "Search the web for current information. Returns titles, URLs, snippets.",
@@ -29,6 +50,12 @@ AGENCY_TOOLS = [
      "input_schema": {"type": "object", "properties": {"cmd": {"type": "string"}}, "required": ["cmd"]}},
     {"name": "system_info", "description": "Get CPU, memory, and platform info.",
      "input_schema": {"type": "object", "properties": {}}},
+    {"name": "schedule_task", "description": "Schedule a reminder or recurring task. 'when' accepts 'in 20m', 'in 2h', 'at 17:00', or 'daily at 07:30'.",
+     "input_schema": {"type": "object", "properties": {"text": {"type": "string"}, "when": {"type": "string"}}, "required": ["text", "when"]}},
+    {"name": "list_schedules", "description": "List active reminders and scheduled tasks.",
+     "input_schema": {"type": "object", "properties": {}}},
+    {"name": "cancel_schedule", "description": "Cancel a scheduled task by its id.",
+     "input_schema": {"type": "object", "properties": {"id": {"type": "string"}}, "required": ["id"]}},
 ]
 
 # tool name -> permission category
@@ -41,6 +68,7 @@ PERMISSION_MAP = {
     "set_volume": "app_control", "media_key": "app_control",
     "run_shell": "shell",
     "system_info": "file_read",
+    "schedule_task": "schedule", "list_schedules": "schedule", "cancel_schedule": "schedule",
 }
 
 # tool name -> implementation callable
@@ -58,6 +86,9 @@ IMPL = {
     "media_key": lambda a: system.media_key(a.get("key", "play")),
     "run_shell": lambda a: system.run_shell(a.get("cmd", "")),
     "system_info": lambda a: system.system_info(),
+    "schedule_task": lambda a: _schedule_add(a.get("text", ""), a.get("when", "")),
+    "list_schedules": lambda a: _schedule_list(),
+    "cancel_schedule": lambda a: _schedule_cancel(a.get("id", "")),
 }
 
 

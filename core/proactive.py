@@ -52,6 +52,22 @@ class ProactiveEngine:
         from core.presence import is_present
         logger.info("Friday proactive scan...")
 
+        # User-set schedules fire regardless of camera presence.
+        try:
+            from core.scheduler import load_schedule, due_entries, save_schedule
+            from datetime import datetime as _dt
+            entries = load_schedule()
+            due = due_entries(entries)
+            for d in due:
+                await self.broadcast_callback(d.get("text", "Reminder, Sir."))
+                d["last_run"] = _dt.now().isoformat()
+            # Remove fired one-offs; keep recurring.
+            if due:
+                kept = [e for e in entries if e.get("kind") == "recurring" or not e.get("last_run")]
+                save_schedule(kept)
+        except Exception as e:
+            logger.error(f"Schedule check error: {e}")
+
         # Camera gate: only speak when the user is recognized in front of the
         # camera. Strict — no fresh presence report means stay silent.
         if not is_present():
