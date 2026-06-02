@@ -35,6 +35,7 @@ class PermissionManager:
             "schedule": "allow",
             "documents": "allow",
             "email": "allow",
+            "seelsupport": "allow",
         }
         self.load()
 

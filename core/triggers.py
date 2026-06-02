@@ -50,5 +50,15 @@ def evaluate_triggers(ctx):
         cands.append({"kind": "web", "score": 0.61,
                       "message_hint": f"Could look up more on '{topic}'."})
 
+    # --- SeelSupport work tasks ---
+    seel_pending = ctx.get("seel_pending_tasks", 0)
+    seel_tickets = ctx.get("seel_open_tickets", 0)
+    if seel_pending > 0:
+        cands.append({"kind": "work_tasks", "score": 0.67,
+                      "message_hint": f"{seel_pending} pending task(s) on SeelSupport."})
+    if seel_tickets > 0:
+        cands.append({"kind": "work_tasks", "score": 0.65,
+                      "message_hint": f"{seel_tickets} open ticket(s) on SeelSupport."})
+
     cands.sort(key=lambda c: c["score"], reverse=True)
     return cands

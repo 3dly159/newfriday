@@ -68,6 +68,17 @@ class ProactiveEngine:
         except Exception as e:
             logger.error(f"Schedule check error: {e}")
 
+        # SeelSupport: check for new notifications (work alerts fire regardless of presence).
+        try:
+            from core.agency.seelsupport import check_new_notifications
+            new_notifs = check_new_notifications()
+            for n in new_notifs:
+                title = n.get("title", "Notification")
+                msg = n.get("message", "")
+                await self.broadcast_callback(f"Sir, new notification: {title}. {msg}")
+        except Exception as e:
+            logger.error(f"SeelSupport notification check error: {e}")
+
         # Camera gate: only speak when the user is recognized in front of the
         # camera. Strict — no fresh presence report means stay silent.
         if not is_present():
@@ -94,6 +105,18 @@ class ProactiveEngine:
                 "minutes_since_interaction": 0,
                 "last_topic": last_topic,
             }
+
+            # Inject SeelSupport work counts for trigger scoring.
+            try:
+                from core.agency.seelsupport import seel_fetch
+                seel_tasks = seel_fetch("tasks")
+                seel_tickets = seel_fetch("tickets")
+                if isinstance(seel_tasks, list):
+                    ctx["seel_pending_tasks"] = sum(1 for t in seel_tasks if t.get("status") in ("pending", "in_progress"))
+                if isinstance(seel_tickets, list):
+                    ctx["seel_open_tickets"] = sum(1 for t in seel_tickets if t.get("status") == "open")
+            except Exception:
+                pass  # non-critical; triggers just won't include work_tasks
             candidates = evaluate_triggers(ctx)
             top = candidates[0] if candidates else None
             if not top or top["score"] < THRESHOLD:

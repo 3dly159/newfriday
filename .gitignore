@@ -28,6 +28,8 @@ Thumbs.db
 # Secrets
 .env
 config/api_keys.json
+config/seelsupport_creds.json
+config/seelsupport_state.json
 
 # Brainstorm companion (visual mockups)
 .superpowers/

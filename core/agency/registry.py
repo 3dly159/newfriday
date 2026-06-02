@@ -1,5 +1,5 @@
 import inspect
-from core.agency import web, files, system, documents, email_gmail
+from core.agency import web, files, system, documents, email_gmail, seelsupport
 
 
 def _schedule_add(text, when):
@@ -68,6 +68,14 @@ AGENCY_TOOLS = [
      "input_schema": {"type": "object", "properties": {"to": {"type": "string"}, "subject": {"type": "string"}, "body": {"type": "string"}}, "required": ["to", "subject", "body"]}},
     {"name": "email_send", "description": "Send an email.",
      "input_schema": {"type": "object", "properties": {"to": {"type": "string"}, "subject": {"type": "string"}, "body": {"type": "string"}}, "required": ["to", "subject", "body"]}},
+    {"name": "seel_fetch", "description": "Fetch records from SeelSupport. Tables: users, projects, tasks, finances, tickets, notifications. Optionally pass item_id to get one record.",
+     "input_schema": {"type": "object", "properties": {"table": {"type": "string"}, "item_id": {"type": "integer"}}, "required": ["table"]}},
+    {"name": "seel_create", "description": "Create a new record in a SeelSupport table. Pass the table name and data object.",
+     "input_schema": {"type": "object", "properties": {"table": {"type": "string"}, "data": {"type": "object"}}, "required": ["table", "data"]}},
+    {"name": "seel_update", "description": "Update a record in a SeelSupport table by ID. Pass table, item_id, and data fields to change.",
+     "input_schema": {"type": "object", "properties": {"table": {"type": "string"}, "item_id": {"type": "integer"}, "data": {"type": "object"}}, "required": ["table", "item_id", "data"]}},
+    {"name": "seel_delete", "description": "Delete a record from a SeelSupport table by ID.",
+     "input_schema": {"type": "object", "properties": {"table": {"type": "string"}, "item_id": {"type": "integer"}}, "required": ["table", "item_id"]}},
 ]
 
 # tool name -> permission category
@@ -83,6 +91,7 @@ PERMISSION_MAP = {
     "schedule_task": "schedule", "list_schedules": "schedule", "cancel_schedule": "schedule",
     "read_document": "documents", "search_in_document": "documents",
     "email_check": "email", "email_search": "email", "email_draft": "email", "email_send": "email",
+    "seel_fetch": "seelsupport", "seel_create": "seelsupport", "seel_update": "seelsupport", "seel_delete": "seelsupport",
 }
 
 # tool name -> implementation callable
@@ -109,6 +118,10 @@ IMPL = {
     "email_search": lambda a: email_gmail.email_search(a.get("query", "")),
     "email_draft": lambda a: email_gmail.email_draft(a.get("to", ""), a.get("subject", ""), a.get("body", "")),
     "email_send": lambda a: email_gmail.email_send(a.get("to", ""), a.get("subject", ""), a.get("body", "")),
+    "seel_fetch": lambda a: seelsupport.seel_fetch(a.get("table", ""), a.get("item_id")),
+    "seel_create": lambda a: seelsupport.seel_create(a.get("table", ""), a.get("data", {})),
+    "seel_update": lambda a: seelsupport.seel_update(a.get("table", ""), a.get("item_id"), a.get("data", {})),
+    "seel_delete": lambda a: seelsupport.seel_delete(a.get("table", ""), a.get("item_id")),
 }
 
 
