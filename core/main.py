@@ -17,6 +17,15 @@ from core.voice_session import VoiceSession
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("Friday")
 
+
+def format_error_line(context, exc):
+    """Structured one-line error record for server.log."""
+    return f"[{datetime.now().isoformat()}] ERROR ctx={context} type={type(exc).__name__} msg={exc}"
+
+
+def log_error(context, exc):
+    logger.error(format_error_line(context, exc))
+
 active_connections: list[WebSocket] = []
 
 # Initialize modules
@@ -237,7 +246,10 @@ async def websocket_endpoint(websocket: WebSocket):
                     unlocked = brain.memory.add_episodic("user", user_text)
                     if unlocked:
                         await websocket.send_json({"type": "arg_unlocked", "flags": unlocked})
-                    await session.run_turn(user_text)
+                    try:
+                        await session.run_turn(user_text)
+                    except Exception as e:
+                        log_error("ws_text_turn", e)
                 continue
 
             data = message.get("bytes")
@@ -274,7 +286,10 @@ async def websocket_endpoint(websocket: WebSocket):
             unlocked = brain.memory.add_episodic("user", transcription)
             if unlocked:
                 await websocket.send_json({"type": "arg_unlocked", "flags": unlocked})
-            await session.run_turn(transcription)
+            try:
+                await session.run_turn(transcription)
+            except Exception as e:
+                log_error("ws_audio_turn", e)
 
     except WebSocketDisconnect:
         print("Client disconnected")
