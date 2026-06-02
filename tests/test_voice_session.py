@@ -112,3 +112,31 @@ def test_summarize_non_card_returns_none():
 
 def test_summarize_unknown_tool_returns_none():
     assert summarize_result("create_task", "Task created") is None
+
+
+def test_first_caption_emitted_before_turn_ends(tmp_path):
+    # The first spoken segment must be emitted as soon as the first sentence is
+    # ready — not held until the stream finishes.
+    class _Brain:
+        class _P:
+            current_mood = "neutral"; mood_states = {"neutral": {"orb_color": "#5cc8ff"}}
+        def __init__(self): self.personality = self._P(); self.config = {"ai_logic": {"llm_model": "t"}}
+        async def get_streaming_response(self, text):
+            for tok in ["One. ", "Two. ", "Three."]:
+                yield tok
+
+    class _TTS:
+        async def generate_speech_timed(self, text, out):
+            open(out, "wb").write(b"A")
+            return out, [{"word": "x", "offset_ms": 0, "duration_ms": 10}]
+
+    sent = []
+    s = VoiceSession(_Brain(), None, _TTS(),
+                     send_json=lambda m: sent.append(m),
+                     send_bytes=lambda b: None, logs_dir=str(tmp_path))
+    asyncio.run(s.run_turn("go"))
+
+    caption_idx = next(i for i, m in enumerate(sent) if m["type"] == "caption")
+    transcript_idxs = [i for i, m in enumerate(sent) if m["type"] == "transcript" and m["role"] == "friday"]
+    assert transcript_idxs and caption_idx < transcript_idxs[-1]
+    assert sum(1 for m in sent if m["type"] == "caption") == 3

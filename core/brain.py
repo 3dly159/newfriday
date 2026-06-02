@@ -11,6 +11,7 @@ from core.skills import ClawhubManager
 from core.dataset import DatasetCapturer
 from core.structured import repair_json, validate_tool_args
 from core.agency import registry as agency_registry
+from core.conversation_utils import trim_history
 from core import persona
 
 class FridayBrain:
@@ -254,8 +255,8 @@ class FridayBrain:
         system_prompt += "\n\n" + self.memory.get_context_string(current_query=user_input)
 
         messages = []
-        for entry in self.memory.layers["episodic"]:
-            # Claude expects role and content, and tool use must follow assistant role
+        # Cap episodic history sent to the LLM to reduce input tokens / latency.
+        for entry in trim_history(self.memory.layers["episodic"], max_turns=12):
             messages.append({"role": entry["role"], "content": entry["content"]})
 
         final_text = ""

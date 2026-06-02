@@ -82,7 +82,6 @@ class VoiceSession:
         await self._emit(events.state_event("thinking"))
 
         open_actions = []
-        held = None
         buffer = ""
         full_reply = ""
         spoke = False
@@ -129,15 +128,15 @@ class VoiceSession:
                 if not spoke:
                     await self._emit(events.state_event("speaking"))
                     spoke = True
-                if held:
-                    await self._synth_segment(held)
-                held = buffer
+                # Speak each sentence as soon as it's ready (no hold-one-ahead),
+                # so the first audio starts as early as possible.
+                await self._synth_segment(buffer)
                 buffer = ""
 
         for t in open_actions:
             await self._emit(events.action_event(t, "done", f"{t} complete"))
 
-        final_text = (held or "") + buffer
+        final_text = buffer
         if final_text.strip():
             if not spoke:
                 await self._emit(events.state_event("speaking"))
