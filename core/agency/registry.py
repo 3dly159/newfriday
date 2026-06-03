@@ -76,6 +76,8 @@ AGENCY_TOOLS = [
      "input_schema": {"type": "object", "properties": {"table": {"type": "string"}, "item_id": {"type": "integer"}, "data": {"type": "object"}}, "required": ["table", "item_id", "data"]}},
     {"name": "seel_delete", "description": "Delete a record from a SeelSupport table by ID.",
      "input_schema": {"type": "object", "properties": {"table": {"type": "string"}, "item_id": {"type": "integer"}}, "required": ["table", "item_id"]}},
+    {"name": "seel_import_tasks_from_file", "description": "Read a JSON tasks file and upload all of its tasks directly to the SeelSupport portal in a batch.",
+     "input_schema": {"type": "object", "properties": {"filepath": {"type": "string", "description": "Safe relative path to the JSON tasks file."}}, "required": ["filepath"]}},
 ]
 
 # tool name -> permission category
@@ -92,6 +94,7 @@ PERMISSION_MAP = {
     "read_document": "documents", "search_in_document": "documents",
     "email_check": "email", "email_search": "email", "email_draft": "email", "email_send": "email",
     "seel_fetch": "seelsupport", "seel_create": "seelsupport", "seel_update": "seelsupport", "seel_delete": "seelsupport",
+    "seel_import_tasks_from_file": "seelsupport",
 }
 
 # tool name -> implementation callable
@@ -122,6 +125,7 @@ IMPL = {
     "seel_create": lambda a: seelsupport.seel_create(a.get("table", ""), a.get("data", {})),
     "seel_update": lambda a: seelsupport.seel_update(a.get("table", ""), a.get("item_id"), a.get("data", {})),
     "seel_delete": lambda a: seelsupport.seel_delete(a.get("table", ""), a.get("item_id")),
+    "seel_import_tasks_from_file": lambda a: seelsupport.seel_import_tasks_from_file(a.get("filepath", "")),
 }
 
 

@@ -20,6 +20,7 @@ import os
 import re
 import httpx
 from core.atomicio import atomic_write_json
+from core.agency.files import is_safe_path
 
 BASE_URL = "https://seelsupport.unaux.com/api"
 STATE_PATH = "config/seelsupport_state.json"
@@ -264,3 +265,55 @@ def check_new_notifications():
         state["last_notified_id"] = max_id
         _save_state(state)
     return new
+
+
+def seel_import_tasks_from_file(filepath):
+    """Read a JSON tasks file and upload all to the SeelSupport portal."""
+    if not is_safe_path(filepath):
+        return f"Refused: '{filepath}' is not a safe relative path."
+    if not os.path.exists(filepath):
+        return f"Error: File '{filepath}' does not exist."
+    if not _load_creds():
+        return _not_configured()
+
+    try:
+        with open(filepath, "r") as f:
+            data = json.load(f)
+    except Exception as e:
+        return f"Error parsing JSON: {e}"
+
+    if not isinstance(data, list):
+        return "Error: JSON file must contain a list of tasks."
+
+    success_count = 0
+    fail_count = 0
+    errors = []
+
+    # Ensure cookie and token are warmed up/cached
+    _ensure_cookie()
+    _ensure_token()
+
+    for idx, item in enumerate(data):
+        task_data = {
+            "project_id": item.get("project_id"),
+            "ticket_id": item.get("ticket_id"),
+            "worker_id": item.get("worker_id"),
+            "title": item.get("title"),
+            "description": item.get("description"),
+            "status": item.get("status", "pending"),
+            "start_date": item.get("start_date"),
+            "due_date": item.get("due_date"),
+        }
+        
+        result = _request("POST", f"{BASE_URL}/tasks", json_data=task_data)
+        if isinstance(result, dict) and "id" in result:
+            success_count += 1
+        else:
+            fail_count += 1
+            errors.append(f"Task #{idx} ('{task_data.get('title')}'): {result}")
+
+    msg = f"Successfully imported {success_count} tasks to SeelSupport portal."
+    if fail_count > 0:
+        msg += f" Failed to import {fail_count} tasks. Sample error: {errors[0]}"
+    return msg
+

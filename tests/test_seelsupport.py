@@ -171,3 +171,49 @@ def test_check_new_notifications_graceful_on_error(tmp_path, monkeypatch):
     monkeypatch.setattr("core.agency.seelsupport.httpx.request", _boom)
     new = check_new_notifications()
     assert new == []
+
+
+def test_import_tasks_from_file_unsafe_path():
+    res = seelsupport.seel_import_tasks_from_file("/etc/passwd")
+    assert "refused" in res.lower() or "not a safe" in res.lower()
+
+
+def test_import_tasks_from_file_missing_file():
+    res = seelsupport.seel_import_tasks_from_file("nonexistent_tasks_file.json")
+    assert "does not exist" in res.lower()
+
+
+def test_import_tasks_from_file_success(tmp_path, monkeypatch):
+    test_file = tmp_path / "tasks.json"
+    tasks_data = [
+        {"title": "Task 1", "project_id": 2, "status": "completed"},
+        {"title": "Task 2", "project_id": 2, "status": "pending"}
+    ]
+    test_file.write_text(json.dumps(tasks_data))
+    
+    # We must patch is_safe_path to allow our tmp_path or use a relative path
+    # Since tmp_path is absolute, is_safe_path would normally reject it because of absolute path checks.
+    # Let's mock is_safe_path to always return True for this test.
+    monkeypatch.setattr("core.agency.seelsupport.is_safe_path", lambda path: True)
+
+    created_ids = [101, 102]
+    call_count = 0
+
+    def _mock_post(method, url, **kw):
+        nonlocal call_count
+        item = tasks_data[call_count]
+        res_data = {
+            "id": created_ids[call_count],
+            "title": item["title"],
+            "project_id": item["project_id"],
+            "status": item["status"]
+        }
+        call_count += 1
+        return _mock_response(res_data, 201)
+
+    monkeypatch.setattr("core.agency.seelsupport.httpx.request", _mock_post)
+
+    res = seelsupport.seel_import_tasks_from_file(str(test_file))
+    assert "successfully imported 2 tasks" in res.lower()
+    assert call_count == 2
+
