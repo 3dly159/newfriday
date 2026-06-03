@@ -1,0 +1,17 @@
+{
+    "hid_control": "allow",
+    "script_execution": "allow",
+    "file_system_write": "allow",
+    "app_orchestration": "allow",
+    "web_access": "allow",
+    "file_read": "allow",
+    "file_write": "allow",
+    "clipboard": "allow",
+    "screenshot": "allow",
+    "app_control": "allow",
+    "shell": "allow",
+    "schedule": "allow",
+    "documents": "allow",
+    "email": "allow",
+    "seelsupport": "allow"
+}

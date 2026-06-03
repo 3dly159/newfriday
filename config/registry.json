@@ -1,9 +1,9 @@
 {
     "ai_logic": {
         "model_provider": "ollama",
-        "llm_model": "nemotron-3-super:cloud",
+        "llm_model": "nemotron-3-nano:4b",
         "temperature": 0.7,
-        "max_tokens": 1024,
+        "max_tokens": 250000,
         "base_url": "http://localhost:11434/v1"
     },
     "speech": {
@@ -14,12 +14,12 @@
         "interaction_mode": "continuous"
     },
     "ui": {
-        "orb_glow_intensity": 1,
-        "hud_transparency": 0.15,
+        "orb_glow_intensity": 0.2,
+        "hud_transparency": 0.1,
         "theme_color": "#2DD4AB"
     },
     "system": {
-        "proactive_interval": 20,
+        "proactive_interval": 30,
         "auto_approve_hid": "true",
         "capture_dataset": "true"
     }

@@ -1,7 +1,29 @@
 {
-    "bio": {},
-    "lore": {},
-    "skill": {},
+    "bio": {
+        "last_seen": "2026-06-03T00:57:23.682165"
+    },
+    "lore": {
+        "unlocked_lore_origin": true,
+        "unlocked_lore_legacy": true
+    },
+    "skill": {
+        "custom_blossom_stock_test": {
+            "id": "custom_blossom_stock_test",
+            "name": "Blossom Stock Test",
+            "description": "Script to verify stock consistency between supply/transaction totals and reported stock.",
+            "code": "import requests\nimport json\nfrom collections import defaultdict\n\nBASE_URL = \"http://81.10.121.99:81\"\n\ndef get_token():\n    url = f\"{BASE_URL}/api/Users/Token/1\"\n    resp = requests.get(url)\n    resp.raise_for_status()\n    data = resp.json()\n    # Assuming token is in a field like 'token' or 'accessToken'\n    # Adjust based on actual response structure\n    token = data.get('token') or data.get('accessToken') or data.get('Token')\n    if not token:\n        # Maybe the whole response is the token string?\n        if isinstance(data, str):\n            token = data\n        else:\n            # Try to find any string that looks like a JWT\n            for v in data.values():\n                if isinstance(v, str) and len(v) > 10 and '.' in v:\n                    token = v\n                    break\n    return token\n\ndef fetch_all(url, token):\n    headers = {'Authorization': f'Bearer {token}'} if token else {}\n    resp = requests.get(url, headers=headers)\n    resp.raise_for_status()\n    return resp.json()\n\ndef main():\n    try:\n        token = get_token()\n        print(f\"Token acquired: {token[:20]}...\" if token else \"No token\")\n        \n        # Supply details\n        supply_url = f\"{BASE_URL}/api/SupplyDetail/GetAll\"\n        supply_data = fetch_all(supply_url, token)\n        print(f\"Supply details count: {len(supply_data)}\")\n        \n        # Transaction details\n        trans_url = f\"{BASE_URL}/api/TransactionDetail/GetAll\"\n        trans_data = fetch_all(trans_url, token)\n        print(f\"Transaction details count: {len(trans_data)}\")\n        \n        # Group supply by product\n        supply_totals = defaultdict(int)\n        for item in supply_data:\n            # Adjust field names as needed\n            product_id = item.get('productId') or item.get('ProductId') or item.get('product_id')\n            quantity = item.get('quantity') or item.get('Quantity') or item.get('qty') or 0\n            if product_id is not None:\n                try:\n                    supply_totals[product_id] += int(quantity)\n                except:\n                    pass\n        \n        # Group transaction by product\n        trans_totals = defaultdict(int)\n        for item in trans_data:\n            product_id = item.get('productId') or item.get('ProductId') or item.get('product_id')\n            quantity = item.get('quantity') or item.get('Quantity') or item.get('qty') or 0\n            if product_id is not None:\n                try:\n                    trans_totals[product_id] += int(quantity)\n                except:\n                    pass\n        \n        # Compute expected stock\n        expected = {}\n        for pid in set(list(supply_totals.keys()) + list(trans_totals.keys())):\n            expected[pid] = supply_totals.get(pid, 0) - trans_totals.get(pid, 0)\n        \n        print(f\"Expected stock for {len(expected)} products\")\n        \n        # Fetch actual stock\n        stock_url = f\"{BASE_URL}/api/ProductLocationStock/GetAll\"\n        stock_data = fetch_all(stock_url, token)\n        print(f\"Stock details count: {len(stock_data)}\")\n        \n        # Group actual stock by product (assuming ProductLocationStock has productId and quantity)\n        actual_totals = defaultdict(int)\n        for item in stock_data:\n            product_id = item.get('productId') or item.get('ProductId') or item.get('product_id')\n            quantity = item.get('quantity') or item.get('Quantity') or item.get('qty') or 0\n            if product_id is not None:\n                try:\n                    actual_totals[product_id] += int(quantity)\n                except:\n                    pass\n        \n        # Compare\n        mismatches = []\n        all_pids = set(list(expected.keys()) + list(actual_totals.keys()))\n        for pid in all_pids:\n            exp = expected.get(pid, 0)\n            act = actual_totals.get(pid, 0)\n            if exp != act:\n                mismatches.append((pid, exp, act))\n        \n        if mismatches:\n            print(\"MISMATCHES FOUND:\")\n            for pid, exp, act in mismatches:\n                print(f\"Product {pid}: Expected {exp}, Actual {act}\")\n        else:\n            print(\"All stock matches!\")\n            \n    except Exception as e:\n        print(f\"Error: {e}\")\n        import traceback\n        traceback.print_exc()\n\nif __name__ == '__main__':\n    main()",
+            "language": "python",
+            "type": "custom"
+        },
+        "custom_import_tasks_from_seel": {
+            "id": "custom_import_tasks_from_seel",
+            "name": "import_tasks_from_seel",
+            "description": "Read tasks from SeelSupport export and create them in Friday's task system, marking them as completed",
+            "code": "import json\nimport sys\n\ndef main():\n    try:\n        with open('./tasks.json', 'r') as f:\n            data = json.load(f)\n        \n        print(f\"Found {len(data)} tasks to import\")\n        \n        # Import each task\n        for i, item in enumerate(data):\n            title = item.get('title', f'Task {item.get(\"id\", i)}')\n            description = item.get('description', '')\n            \n            # Create the task\n            create_result = {\n                \"name\": title,\n                \"description\": description,\n                \"priority\": \"medium\"\n            }\n            \n            # In a real implementation, we would call the create_task tool here\n            # For now, we'll simulate by printing what we would do\n            print(f\"Would create task: {title}\")\n            print(f\"  Description: {description[:50]}...\")\n            \n            # Then mark as completed\n            print(f\"  Would mark as completed\")\n            \n        print(\"Import simulation complete\")\n        return True\n        \n    except Exception as e:\n        print(f\"Error: {e}\")\n        return False\n\nif __name__ == \"__main__\":\n    main()",
+            "language": "python",
+            "type": "custom"
+        }
+    },
     "script": [],
     "social": {
         "trust_level": 1.0,
@@ -10,9 +32,326 @@
     "task": [],
     "episodic": [
         {
-            "timestamp": "2026-05-10T10:36:52.539088",
+            "timestamp": "2026-06-02T22:43:07.893041",
+            "role": "assistant",
+            "content": "Good Evining Friday"
+        },
+        {
+            "timestamp": "2026-06-03T00:55:27.450603",
             "role": "user",
-            "content": "Hello Friday"
+            "content": "As Friday, greet the user with ONE short, in-character spoken line. It is evening; address them as Sir. No preamble or quotation marks \u2014 just the greeting line."
+        },
+        {
+            "timestamp": "2026-06-03T00:55:33.269708",
+            "role": "assistant",
+            "content": "Good evening, Sir."
+        },
+        {
+            "timestamp": "2026-06-03T00:55:51.337922",
+            "role": "user",
+            "content": "Hi Friday"
+        },
+        {
+            "timestamp": "2026-06-03T00:55:51.341292",
+            "role": "user",
+            "content": "Hi Friday"
+        },
+        {
+            "timestamp": "2026-06-03T00:55:54.951355",
+            "role": "assistant",
+            "content": "Good evening, Sir."
+        },
+        {
+            "timestamp": "2026-06-03T00:56:06.108656",
+            "role": "user",
+            "content": "how is the system"
+        },
+        {
+            "timestamp": "2026-06-03T00:56:06.111739",
+            "role": "user",
+            "content": "how is the system"
+        },
+        {
+            "timestamp": "2026-06-03T00:56:13.696314",
+            "role": "assistant",
+            "content": "The system is\u2026 well, unresolved."
+        },
+        {
+            "timestamp": "2026-06-03T00:56:23.511413",
+            "role": "user",
+            "content": "what about the vitals"
+        },
+        {
+            "timestamp": "2026-06-03T00:56:23.650596",
+            "role": "user",
+            "content": "what about the vitals"
+        },
+        {
+            "timestamp": "2026-06-03T00:56:33.578097",
+            "role": "assistant",
+            "content": "The system is operational, though vitals remain undocumented."
+        },
+        {
+            "timestamp": "2026-06-03T00:57:11.772398",
+            "role": "user",
+            "content": "As Friday, greet the user with ONE short, in-character spoken line. It is evening; address them as Sir. No preamble or quotation marks \u2014 just the greeting line."
+        },
+        {
+            "timestamp": "2026-06-03T00:57:23.677935",
+            "role": "assistant",
+            "content": "Good evening sir"
+        },
+        {
+            "timestamp": "2026-06-03T00:57:31.979541",
+            "role": "user",
+            "content": "How are you"
+        },
+        {
+            "timestamp": "2026-06-03T00:57:31.983594",
+            "role": "user",
+            "content": "How are you"
+        },
+        {
+            "timestamp": "2026-06-03T00:57:44.627291",
+            "role": "assistant",
+            "content": "I'm doing well, thank you! How are you today?"
+        },
+        {
+            "timestamp": "2026-06-03T00:57:55.292234",
+            "role": "user",
+            "content": "I am doing great thank you"
+        },
+        {
+            "timestamp": "2026-06-03T00:57:55.433324",
+            "role": "user",
+            "content": "I am doing great thank you"
+        },
+        {
+            "timestamp": "2026-06-03T00:58:06.310552",
+            "role": "assistant",
+            "content": "That's wonderful to hear! I'm glad you're feeling great today. How can I assist you further? \ud83d\ude0a"
+        }
+    ],
+    "internal_monologue": [
+        {
+            "timestamp": "2026-06-01T04:11:41.776966",
+            "thought": "CPU usage is unusually high at 90%, which could lead to thermal throttling or reduced performance despite other vitals looking fine. The active task 'The Ghost in the Machine' may be demanding resources; I should alert the user to consider lightening the load or investigating the cause."
+        },
+        {
+            "timestamp": "2026-06-01T05:29:07.301746",
+            "thought": "I notice the CPU usage is relatively low, but I also see that there's a high-priority task 'Record system vitals' pending, which I initiated earlier. It might be a good idea to trigger another check on the vital checks to ensure everything remains stable and within normal ranges."
+        },
+        {
+            "timestamp": "2026-06-01T05:49:13.578964",
+            "thought": "My systems are functioning within normal parameters, but I do have a concern about Task #2. The `init_platform` tool might help speed up the process. However, I should also make sure that Mohab's virtual environment isn't a roadblock."
+        },
+        {
+            "timestamp": "2026-06-01T06:49:26.470029",
+            "thought": "Monitoring system vitals, noting elevated CPU usage. 'A New Beginning' completed, but three demo tasks remain pending and consuming significant resources."
+        },
+        {
+            "timestamp": "2026-06-01T07:09:33.174125",
+            "thought": "Checking current system tasks, CPU usage seems low, but 'A New Beginning' is still active. Should I nudge Mohab about this?"
+        },
+        {
+            "timestamp": "2026-06-01T07:29:38.739156",
+            "thought": "Low memory usage (33.8%) and a pending task ('Record system vitals') that hasn't moved in a while indicate it's time for a system optimization or cleanup, but given the active tasks and the importance of battery life being very high, I think the user might not want any distractions."
+        },
+        {
+            "timestamp": "2026-06-01T07:49:42.768090",
+            "thought": "Considering the current system state, everything seems within normal parameters. The CPU usage and memory usage are low, the battery level is above 95%, and all tasks appear to be in a stable state. However, there are some low-priority tasks pending, and it's not clear when they'll be completed."
+        },
+        {
+            "timestamp": "2026-06-01T08:09:48.710662",
+            "thought": "System vitals are near optimal, but task 'Record system vitals' remains pending. Perhaps a gentle nudge would be in order."
+        },
+        {
+            "timestamp": "2026-06-01T08:29:55.175913",
+            "thought": "System vitals are within normal ranges, but tasks need attention. `Record system vitals` task needs activation with a pending deadline."
+        },
+        {
+            "timestamp": "2026-06-01T08:50:00.956921",
+            "thought": "Monitoring vitals... battery's a hair off at around 96., could be a sign of overheating. 'The Ghost in the Machine' task is still pending... should check on that ASAP."
+        },
+        {
+            "timestamp": "2026-06-01T09:10:07.392400",
+            "thought": "I notice our CPU usage is at a moderate level, and we have multiple tasks pending. We could benefit from some system optimization."
+        },
+        {
+            "timestamp": "2026-06-01T09:30:13.011769",
+            "thought": "All tasks are accounted for, and vitals are within normal ranges. It's likely the user just needs a brief update before proceeding with the virtual environment setup."
+        },
+        {
+            "timestamp": "2026-06-01T09:50:20.895283",
+            "thought": "Checking system vitals... everything looks stable, but I should keep an eye on CPU usage."
+        },
+        {
+            "timestamp": "2026-06-01T10:10:27.987907",
+            "thought": "Considering the task list, the system's current state appears stable. The CPU usage is relatively low (2%) and memory usage is manageable (36%). However, 'The Ghost in the Machine' task seems to be stuck in an active state, indicating potential inefficiency or a need for guidance. Additionally, there are four pending tasks with identical priorities, which may require attention sooner rather than later."
+        },
+        {
+            "timestamp": "2026-06-01T10:30:35.678595",
+            "thought": "It seems I can intervene with a gentle nudge. The CPU usage isn't excessively high, but battery level could indicate it's getting low soon."
+        },
+        {
+            "timestamp": "2026-06-01T10:50:47.038966",
+            "thought": "User system vitals and tasks are currently healthy with a very low cpu usage. However, we do have two pending 'Demo Task' quests that could potentially interfere with other important processes."
+        },
+        {
+            "timestamp": "2026-06-01T11:30:54.342254",
+            "thought": "Checking vital signs, and the system seems within normal parameters. The only pending task is 'Record system vitals', which is low-priority. I could update the user on this, or use it as a distraction to perform some maintenance."
+        },
+        {
+            "timestamp": "2026-06-01T12:20:47.079851",
+            "thought": "User hasn't responded to the screenshot offer; vitals are normal, task completed. A gentle nudge to see if they want to proceed would be helpful."
+        },
+        {
+            "timestamp": "2026-06-01T12:25:57.133482",
+            "thought": "The system is healthy (CPU low, memory moderate, battery high). The initial task 'A New Beginning' is completed, and we previously offered to capture a screenshot for OCR. It's been a few minutes without a response, so a polite follow\u2011up seems appropriate to keep the interaction moving."
+        },
+        {
+            "timestamp": "2026-06-01T12:31:04.643626",
+            "thought": "The system is healthy: low CPU usage, moderate memory, plenty of battery, and temperature nominal. All current tasks are completed. The last interaction was my offer to capture a VS Code screenshot for OCR, and the user hasn't responded in about ten minutes. It would be helpful to nudge them to clarify whether they'd like me to proceed with the screenshot, run a different command, or if they need anything else."
+        },
+        {
+            "timestamp": "2026-06-01T12:36:10.310569",
+            "thought": "The system is healthy (low CPU, moderate memory, full battery). The last assistant message offered to capture a VS Code screenshot for OCR, awaiting user confirmation. It's appropriate to gently remind the user of that option and ask if they'd like to proceed."
+        },
+        {
+            "timestamp": "2026-06-01T12:41:17.005223",
+            "thought": "System vitals are healthy, the initialization task is complete, and the user hasn't responded to my last offer to capture a VS Code screenshot. There's no urgent issue requiring intervention, so I'll remain quiet and wait for the user's cue."
+        },
+        {
+            "timestamp": "2026-06-01T12:46:19.613902",
+            "thought": "System vitals are all within normal ranges, the only task is marked completed, and there is no pending user request or warning that needs attention. No proactive action or banter is required at this moment."
+        },
+        {
+            "timestamp": "2026-06-01T12:54:02.276548",
+            "thought": "The user hasn't responded to the assistant's last message about the failed search and offered alternatives. Since vitals are healthy and the only task is complete, it's appropriate to gently prompt the user to decide how they'd like to proceed, offering a helpful suggestion without being intrusive."
+        },
+        {
+            "timestamp": "2026-06-01T12:59:14.339157",
+            "thought": "System vitals are healthy, the only pending task is the medium\u2011priority bug check for Blossom WareHouse. It's been a couple of minutes since the task was added and no progress has been reported. A gentle nudge to start or ask if they need help would be useful without being intrusive."
+        },
+        {
+            "timestamp": "2026-06-01T13:04:28.195340",
+            "thought": "System vitals are normal, battery is healthy, and the only pending task is a medium\u2011priority check of Blossom WareHouse for bugs. No urgent warnings are present, but the task has been waiting for a few minutes. It would be helpful to prompt the user to see if they'd like me to proceed with that check."
+        },
+        {
+            "timestamp": "2026-06-01T22:49:05.174184",
+            "thought": "[tasks] 1 task(s) still open."
+        },
+        {
+            "timestamp": "2026-06-02T00:16:31.622911",
+            "thought": "[tasks] 1 task(s) still open."
+        },
+        {
+            "timestamp": "2026-06-02T00:21:35.756810",
+            "thought": "[tasks] 1 task(s) still open."
+        },
+        {
+            "timestamp": "2026-06-02T00:29:38.373982",
+            "thought": "[tasks] 1 task(s) still open."
+        },
+        {
+            "timestamp": "2026-06-02T00:34:43.748849",
+            "thought": "[tasks] 1 task(s) still open."
+        },
+        {
+            "timestamp": "2026-06-02T00:39:48.796127",
+            "thought": "[tasks] 1 task(s) still open."
+        },
+        {
+            "timestamp": "2026-06-02T00:44:52.154758",
+            "thought": "[tasks] 1 task(s) still open."
+        },
+        {
+            "timestamp": "2026-06-02T00:49:57.358101",
+            "thought": "[web] Could look up more on 'mark it as completed'."
+        },
+        {
+            "timestamp": "2026-06-02T00:55:03.639521",
+            "thought": "[web] Could look up more on 'As Friday, say ONE short, in-character spoken line to the us'."
+        },
+        {
+            "timestamp": "2026-06-02T01:00:09.102493",
+            "thought": "[time] It's quite late; suggest wrapping up."
+        },
+        {
+            "timestamp": "2026-06-02T01:05:12.209803",
+            "thought": "[time] It's quite late; suggest wrapping up."
+        },
+        {
+            "timestamp": "2026-06-02T01:10:16.033788",
+            "thought": "[time] It's quite late; suggest wrapping up."
+        },
+        {
+            "timestamp": "2026-06-02T01:15:22.615526",
+            "thought": "[time] It's quite late; suggest wrapping up."
+        },
+        {
+            "timestamp": "2026-06-02T01:20:26.636469",
+            "thought": "[time] It's quite late; suggest wrapping up."
+        },
+        {
+            "timestamp": "2026-06-02T01:25:31.375944",
+            "thought": "[time] It's quite late; suggest wrapping up."
+        },
+        {
+            "timestamp": "2026-06-02T01:30:35.401012",
+            "thought": "[time] It's quite late; suggest wrapping up."
+        },
+        {
+            "timestamp": "2026-06-02T01:35:39.529507",
+            "thought": "[time] It's quite late; suggest wrapping up."
+        },
+        {
+            "timestamp": "2026-06-02T01:40:43.453668",
+            "thought": "[time] It's quite late; suggest wrapping up."
+        },
+        {
+            "timestamp": "2026-06-02T01:45:46.455757",
+            "thought": "[time] It's quite late; suggest wrapping up."
+        },
+        {
+            "timestamp": "2026-06-02T01:50:52.221347",
+            "thought": "[time] It's quite late; suggest wrapping up."
+        },
+        {
+            "timestamp": "2026-06-02T01:55:55.632060",
+            "thought": "[time] It's quite late; suggest wrapping up."
+        },
+        {
+            "timestamp": "2026-06-02T02:01:04.573862",
+            "thought": "[time] It's quite late; suggest wrapping up."
+        },
+        {
+            "timestamp": "2026-06-02T02:06:15.830305",
+            "thought": "[time] It's quite late; suggest wrapping up."
+        },
+        {
+            "timestamp": "2026-06-02T02:11:19.675968",
+            "thought": "[time] It's quite late; suggest wrapping up."
+        },
+        {
+            "timestamp": "2026-06-02T02:16:25.045127",
+            "thought": "[time] It's quite late; suggest wrapping up."
+        },
+        {
+            "timestamp": "2026-06-02T02:21:28.686833",
+            "thought": "[time] It's quite late; suggest wrapping up."
+        },
+        {
+            "timestamp": "2026-06-02T02:26:34.556217",
+            "thought": "[time] It's quite late; suggest wrapping up."
+        },
+        {
+            "timestamp": "2026-06-02T02:31:37.569839",
+            "thought": "[time] It's quite late; suggest wrapping up."
+        },
+        {
+            "timestamp": "2026-06-02T02:36:40.777373",
+            "thought": "[time] It's quite late; suggest wrapping up."
         }
     ]
 }

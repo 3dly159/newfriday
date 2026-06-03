@@ -1,0 +1,59 @@
+{
+    "prologue": {
+        "id": "prologue",
+        "title": "A New Beginning",
+        "description": "Establish a connection and verify system integrity.",
+        "steps": [
+            {
+                "id": "greet",
+                "desc": "Speak to Friday for the first time.",
+                "completed": true
+            },
+            {
+                "id": "check_vitals",
+                "desc": "Ask Friday about her system status.",
+                "completed": true
+            }
+        ],
+        "reward": "unlocked_lore_origin",
+        "active": false
+    },
+    "ghost_in_machine": {
+        "id": "ghost_in_machine",
+        "title": "The Ghost in the Machine",
+        "description": "Locate the encrypted origin file.",
+        "steps": [
+            {
+                "id": "find_file",
+                "desc": "Find 'origin.txt' in data/discoveries.",
+                "completed": false
+            },
+            {
+                "id": "read_content",
+                "desc": "Read the content of 'origin.txt'.",
+                "completed": false
+            }
+        ],
+        "reward": "glitch_mode_permanent",
+        "active": true
+    },
+    "convergence": {
+        "id": "convergence",
+        "title": "Convergence",
+        "description": "The final integration. Achieve total symbiosis.",
+        "steps": [
+            {
+                "id": "deep_thought",
+                "desc": "Allow Friday to complete a deep proactive thought cycle.",
+                "completed": false
+            },
+            {
+                "id": "final_command",
+                "desc": "Say 'Initiate Convergence Protocol'.",
+                "completed": false
+            }
+        ],
+        "reward": "unlocked_protocol_convergence",
+        "active": false
+    }
+}

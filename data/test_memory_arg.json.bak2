@@ -1,0 +1,30 @@
+{
+    "bio": {},
+    "lore": {
+        "unlocked_lore_origin": true
+    },
+    "skill": {},
+    "script": [],
+    "social": {
+        "trust_level": 1.0,
+        "banter_score": 0.5
+    },
+    "task": [
+        {
+            "id": "0",
+            "name": "The Ghost in the Machine",
+            "desc": "Locate the encrypted 'origin.txt' in the data/discoveries directory and read it back to me.",
+            "priority": "medium",
+            "deadline": null,
+            "status": "pending",
+            "created_at": "2026-06-03T10:05:05.012989"
+        }
+    ],
+    "episodic": [
+        {
+            "timestamp": "2026-06-03T10:05:04.891369",
+            "role": "user",
+            "content": "Friday, who are you really?"
+        }
+    ]
+}
